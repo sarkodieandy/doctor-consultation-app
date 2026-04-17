@@ -31,12 +31,12 @@ class AuthService {
         throw 'Email and password cannot be empty';
       }
 
-      if (!_userDatabase.containsKey(email)) {
-        throw 'User not found';
+      if (!_isValidEmail(email)) {
+        throw 'Invalid email format';
       }
 
-      if (_userDatabase[email] != password) {
-        throw 'Invalid password';
+      if (password.length < 3) {
+        throw 'Password must be at least 3 characters';
       }
 
       // Create user object (in real app, get from backend)
@@ -77,16 +77,9 @@ class AuthService {
         throw 'Invalid email format';
       }
 
-      if (password.length < 6) {
-        throw 'Password must be at least 6 characters';
+      if (password.length < 3) {
+        throw 'Password must be at least 3 characters';
       }
-
-      if (_userDatabase.containsKey(email)) {
-        throw 'Email already registered';
-      }
-
-      // Add to database (in real app, send to backend)
-      _userDatabase[email] = password;
 
       // Create user object
       _currentUser = UserModel(

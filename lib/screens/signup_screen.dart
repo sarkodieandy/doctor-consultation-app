@@ -56,13 +56,6 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (!_agreeToTerms) {
-      setState(() {
-        _errorMessage = 'Please accept the terms and conditions';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
