@@ -7,6 +7,12 @@ import 'package:doctor_consultation_app/controllers/review_controller.dart';
 import 'package:doctor_consultation_app/screens/booking_screen.dart';
 import 'package:doctor_consultation_app/screens/chat_screen.dart';
 import 'package:doctor_consultation_app/screens/consultation_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_appointments_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_dashboard_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_earnings_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_profile_edit_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_schedule_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/pending_approval_screen.dart';
 import 'package:doctor_consultation_app/screens/health_records_screen.dart';
 import 'package:doctor_consultation_app/screens/home_screen.dart';
 import 'package:doctor_consultation_app/screens/login_screen.dart';
@@ -143,6 +149,31 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/write-review',
           page: () => WriteReviewScreen(),
+        ),
+        // Doctor Routes
+        GetPage(
+          name: '/pending-approval',
+          page: () => PendingApprovalScreen(),
+        ),
+        GetPage(
+          name: '/doctor-home',
+          page: () => DoctorDashboardScreen(),
+        ),
+        GetPage(
+          name: '/doctor-schedule',
+          page: () => DoctorScheduleScreen(),
+        ),
+        GetPage(
+          name: '/doctor-appointments',
+          page: () => DoctorAppointmentsScreen(),
+        ),
+        GetPage(
+          name: '/doctor-earnings',
+          page: () => DoctorEarningsScreen(),
+        ),
+        GetPage(
+          name: '/doctor-profile-edit',
+          page: () => DoctorProfileEditScreen(),
         ),
       ],
     );

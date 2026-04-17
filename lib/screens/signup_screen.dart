@@ -16,13 +16,37 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // Doctor-specific controllers
+  final _specialtyController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _consultationFeeController = TextEditingController();
+  final _bioController = TextEditingController();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   String? _errorMessage;
+  bool _isDoctor = false;
+  String? _licenseDocumentPath;
 
   final _authService = AuthService();
+
+  final List<String> _specialties = [
+    'General Practitioner',
+    'Cardiologist',
+    'Dermatologist',
+    'Neurologist',
+    'Pediatrician',
+    'Orthopedist',
+    'Psychiatrist',
+    'Gynecologist',
+    'Ophthalmologist',
+    'ENT Specialist',
+    'Dentist',
+    'Surgeon',
+    'Other',
+  ];
 
   @override
   void dispose() {
@@ -32,11 +56,30 @@ class _SignupScreenState extends State<SignupScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _specialtyController.dispose();
+    _experienceController.dispose();
+    _consultationFeeController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
+  void _pickLicenseDocument() {
+    // Simulated file picker - in production use file_picker package
+    setState(() {
+      _licenseDocumentPath =
+          'license_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('License document selected'),
+        backgroundColor: kBlueColor,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _signup() async {
-    // Validate
+    // Validate common fields
     if (_firstNameController.text.isEmpty ||
         _lastNameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -55,22 +98,79 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    if (!_agreeToTerms) {
+      setState(() {
+        _errorMessage = 'Please agree to the Terms & Conditions';
+      });
+      return;
+    }
+
+    // Validate doctor-specific fields
+    if (_isDoctor) {
+      if (_specialtyController.text.isEmpty) {
+        setState(() {
+          _errorMessage = 'Please select your specialty';
+        });
+        return;
+      }
+      if (_experienceController.text.isEmpty) {
+        setState(() {
+          _errorMessage = 'Please enter your years of experience';
+        });
+        return;
+      }
+      if (_consultationFeeController.text.isEmpty) {
+        setState(() {
+          _errorMessage = 'Please enter your consultation fee';
+        });
+        return;
+      }
+      if (_licenseDocumentPath == null) {
+        setState(() {
+          _errorMessage = 'Please upload your medical license document';
+        });
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      bool success = await _authService.signup(
-        _emailController.text.trim(),
-        _firstNameController.text.trim(),
-        _lastNameController.text.trim(),
-        _phoneController.text.trim(),
-        _passwordController.text,
-      );
+      bool success;
 
-      if (success) {
-        Get.offNamed('/home');
+      if (_isDoctor) {
+        success = await _authService.signupDoctor(
+          email: _emailController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          password: _passwordController.text,
+          specialty: _specialtyController.text.trim(),
+          experience: _experienceController.text.trim(),
+          consultationFee:
+              double.tryParse(_consultationFeeController.text.trim()) ?? 0.0,
+          licenseDocumentPath: _licenseDocumentPath!,
+          bio: _bioController.text.trim(),
+        );
+
+        if (success) {
+          Get.offNamed('/pending-approval');
+        }
+      } else {
+        success = await _authService.signup(
+          _emailController.text.trim(),
+          _firstNameController.text.trim(),
+          _lastNameController.text.trim(),
+          _phoneController.text.trim(),
+          _passwordController.text,
+        );
+
+        if (success) {
+          Get.offNamed('/home');
+        }
       }
     } catch (e) {
       setState(() {
@@ -106,13 +206,103 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  'Join us today and get started',
+                  _isDoctor
+                      ? 'Register as a doctor to start consultations'
+                      : 'Join us today and get started',
                   style: TextStyle(
                     fontSize: 14,
                     color: kTitleTextColor.withOpacity(0.6),
                   ),
                 ),
-                SizedBox(height: 30),
+                SizedBox(height: 24),
+
+                // Role Toggle
+                Container(
+                  decoration: BoxDecoration(
+                    color: kSearchBackgroundColor,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _isDoctor = false),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color:
+                                  !_isDoctor ? kBlueColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person_outlined,
+                                  color: !_isDoctor
+                                      ? kWhiteColor
+                                      : kTitleTextColor,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Patient',
+                                  style: TextStyle(
+                                    color: !_isDoctor
+                                        ? kWhiteColor
+                                        : kTitleTextColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _isDoctor = true),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color:
+                                  _isDoctor ? kBlueColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.medical_services_outlined,
+                                  color:
+                                      _isDoctor ? kWhiteColor : kTitleTextColor,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Doctor',
+                                  style: TextStyle(
+                                    color: _isDoctor
+                                        ? kWhiteColor
+                                        : kTitleTextColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24),
 
                 // Error Message
                 if (_errorMessage != null)
@@ -174,6 +364,176 @@ class _SignupScreenState extends State<SignupScreen> {
                   keyboardType: TextInputType.phone,
                 ),
                 SizedBox(height: 16),
+
+                // Doctor-specific fields
+                if (_isDoctor) ...[
+                  // Specialty Dropdown
+                  _buildLabel('Specialty'),
+                  SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: kSearchBackgroundColor,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: _specialtyController.text.isEmpty
+                          ? null
+                          : _specialtyController.text,
+                      hint: Text(
+                        'Select your specialty',
+                        style: TextStyle(color: kSearchTextColor),
+                      ),
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.only(left: 16, right: 12),
+                          child: Icon(Icons.medical_services_outlined,
+                              color: kBlueColor, size: 20),
+                        ),
+                        prefixIconConstraints: BoxConstraints(minWidth: 0),
+                      ),
+                      items: _specialties.map((specialty) {
+                        return DropdownMenuItem(
+                          value: specialty,
+                          child: Text(specialty),
+                        );
+                      }).toList(),
+                      onChanged: _isLoading
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _specialtyController.text = value ?? '';
+                              });
+                            },
+                    ),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Experience
+                  _buildLabel('Years of Experience'),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    _experienceController,
+                    'e.g. 5 years',
+                    Icons.work_outlined,
+                  ),
+                  SizedBox(height: 16),
+
+                  // Consultation Fee
+                  _buildLabel('Consultation Fee (GHS)'),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    _consultationFeeController,
+                    'e.g. 150.00',
+                    Icons.attach_money,
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Bio
+                  _buildLabel('Short Bio'),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _bioController,
+                    maxLines: 3,
+                    enabled: !_isLoading,
+                    decoration: InputDecoration(
+                      hintText: 'Tell patients about yourself...',
+                      hintStyle: TextStyle(color: kSearchTextColor),
+                      filled: true,
+                      fillColor: kSearchBackgroundColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+
+                  // License Upload
+                  _buildLabel('Medical License Document'),
+                  SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: _isLoading ? null : _pickLicenseDocument,
+                    child: Container(
+                      width: double.infinity,
+                      padding:
+                          EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: kSearchBackgroundColor,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: _licenseDocumentPath != null
+                              ? kBlueColor
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            _licenseDocumentPath != null
+                                ? Icons.check_circle
+                                : Icons.cloud_upload_outlined,
+                            color: _licenseDocumentPath != null
+                                ? kBlueColor
+                                : kSearchTextColor,
+                            size: 40,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            _licenseDocumentPath != null
+                                ? 'Document uploaded'
+                                : 'Tap to upload license (PDF/Image)',
+                            style: TextStyle(
+                              color: _licenseDocumentPath != null
+                                  ? kBlueColor
+                                  : kSearchTextColor,
+                              fontSize: 13,
+                              fontWeight: _licenseDocumentPath != null
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Info notice
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: kBlueColor.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: kBlueColor, size: 20),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Your account will be reviewed by admin before you can start accepting patients.',
+                            style: TextStyle(
+                              color: kBlueColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                ],
 
                 // Password
                 _buildLabel('Password'),
@@ -250,7 +610,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   height: 55,
                   child: MaterialButton(
                     onPressed: _isLoading ? null : _signup,
-                    color: kOrangeColor,
+                    color: _isDoctor ? kBlueColor : kOrangeColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
@@ -264,7 +624,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           )
                         : Text(
-                            'Create Account',
+                            _isDoctor ? 'Register as Doctor' : 'Create Account',
                             style: TextStyle(
                               color: kWhiteColor,
                               fontSize: 16,

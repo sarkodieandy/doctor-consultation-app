@@ -40,6 +40,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  int _selectedPaymentMethod = 0; // 0 = Paystack, 1 = Wallet
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,7 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 ),
                               ),
                               Text(
-                                '₹${doctor.consultationFee.toStringAsFixed(0)}',
+                                'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w500,
                                   fontSize: 14,
@@ -204,7 +206,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 ),
                               ),
                               Text(
-                                '₹50',
+                                'GHS 50',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w500,
                                   fontSize: 14,
@@ -225,7 +227,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 ),
                               ),
                               Text(
-                                '₹${(doctor.consultationFee + 50).toStringAsFixed(0)}',
+                                'GHS ${(doctor.consultationFee + 50).toStringAsFixed(0)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
@@ -250,23 +252,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                     SizedBox(height: 15),
 
-                    // Razorpay Payment Option
+                    // Paystack Payment Option
                     _paymentMethodCard(
-                      title: 'Pay with Razorpay',
-                      subtitle: 'Credit Card, Debit Card, UPI, Wallet',
+                      title: 'Pay with Paystack',
+                      subtitle: 'Credit Card, Debit Card, Mobile Money',
                       icon: Icons.payment,
-                      onTap: _processRazorpayPayment,
+                      selected: _selectedPaymentMethod == 0,
+                      onTap: () => setState(() => _selectedPaymentMethod = 0),
                     ),
                     SizedBox(height: 15),
 
                     // Wallet Payment Option
                     _paymentMethodCard(
                       title: 'Wallet Balance',
-                      subtitle: '₹500 available',
+                      subtitle: 'GHS 500 available',
                       icon: Icons.account_balance_wallet,
-                      onTap: () => _showMessage('Wallet payment coming soon'),
+                      selected: _selectedPaymentMethod == 1,
+                      onTap: () => setState(() => _selectedPaymentMethod = 1),
                     ),
                     SizedBox(height: 25),
+
+                    // Pay Now Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: MaterialButton(
+                        onPressed: _processPayment,
+                        color: kOrangeColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Text(
+                          'Pay GHS ${(doctor.consultationFee + 50).toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: kWhiteColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 15),
 
                     // Terms & Conditions
                     Container(
@@ -304,6 +330,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     required String subtitle,
     required IconData icon,
     required VoidCallback onTap,
+    bool selected = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -312,7 +339,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
         decoration: BoxDecoration(
           color: kWhiteColor,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kSearchBackgroundColor),
+          border: Border.all(
+            color: selected ? kBlueColor : kSearchBackgroundColor,
+            width: selected ? 2 : 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.05),
@@ -361,7 +391,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  void _processRazorpayPayment() {
+  void _processPayment() {
     final user = authService.currentUser;
     if (user == null) {
       _showMessage('Please log in again before making a payment.');
@@ -403,7 +433,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     await notificationService.sendPaymentSuccess(
-      paymentId: payment.transactionId ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
+      paymentId: payment.transactionId ??
+          'payment_${DateTime.now().millisecondsSinceEpoch}',
       amount: doctor.consultationFee + 50,
       appointmentId: _pendingAppointmentId ?? '',
     );

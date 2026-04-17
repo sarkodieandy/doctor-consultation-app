@@ -1,5 +1,6 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -37,7 +38,16 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success) {
-        Get.offNamed('/home');
+        final user = _authService.currentUser;
+        if (user != null && user.isDoctor) {
+          if (user.isDoctorApproved) {
+            Get.offNamed('/doctor-home');
+          } else {
+            Get.offNamed('/pending-approval');
+          }
+        } else {
+          Get.offNamed('/home');
+        }
       }
     } catch (e) {
       setState(() {
