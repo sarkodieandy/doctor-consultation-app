@@ -76,6 +76,11 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(
                 height: 20,
               ),
+              // Quick Access Features
+              buildQuickAccessFeatures(),
+              SizedBox(
+                height: 20,
+              ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
@@ -149,6 +154,106 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 30,
           ),
         ],
+      ),
+    );
+  }
+
+  buildQuickAccessFeatures() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Access',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: kTitleTextColor,
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1,
+            children: [
+              _buildFeatureCard(
+                'Messages',
+                Icons.chat_bubble,
+                kBlueColor,
+                () => Get.toNamed('/chat'),
+              ),
+              _buildFeatureCard(
+                'Prescriptions',
+                Icons.description,
+                kOrangeColor,
+                () => Get.toNamed('/prescriptions'),
+              ),
+              _buildFeatureCard(
+                'Health',
+                Icons.favorite,
+                Colors.red,
+                () => Get.toNamed('/health-records'),
+              ),
+              _buildFeatureCard(
+                'Consultations',
+                Icons.videocam,
+                kYellowColor,
+                () => Get.toNamed('/consultations'),
+              ),
+              _buildFeatureCard(
+                'Reviews',
+                Icons.star,
+                Colors.amber,
+                () => Get.toNamed('/reviews'),
+              ),
+              _buildFeatureCard(
+                'Appointments',
+                Icons.calendar_today,
+                Colors.teal,
+                () => Get.toNamed('/appointments'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 30),
+            SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: kTitleTextColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
