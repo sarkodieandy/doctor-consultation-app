@@ -1,8 +1,7 @@
 import 'package:doctor_consultation_app/constant.dart';
-import 'package:doctor_consultation_app/screens/home_screen.dart';
-import 'package:doctor_consultation_app/screens/login_screen.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class SignupScreen extends StatefulWidget {
   @override
@@ -71,10 +70,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (success) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
+        Get.offNamed('/home');
       }
     } catch (e) {
       setState(() {
@@ -294,12 +290,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       onTap: _isLoading
                           ? null
                           : () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LoginScreen(),
-                                ),
-                              );
+                              Get.offNamed('/login');
                             },
                       child: Text(
                         'Login',

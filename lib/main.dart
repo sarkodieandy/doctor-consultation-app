@@ -10,6 +10,7 @@ import 'package:doctor_consultation_app/screens/consultation_screen.dart';
 import 'package:doctor_consultation_app/screens/health_records_screen.dart';
 import 'package:doctor_consultation_app/screens/home_screen.dart';
 import 'package:doctor_consultation_app/screens/login_screen.dart';
+import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
@@ -46,6 +47,10 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/login',
           page: () => LoginScreen(),
+        ),
+        GetPage(
+          name: '/signup',
+          page: () => SignupScreen(),
         ),
         GetPage(
           name: '/home',
