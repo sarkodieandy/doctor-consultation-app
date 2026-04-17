@@ -5,7 +5,7 @@ import 'package:doctor_consultation_app/screens/login_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
-import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/screens/splash_screen.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -19,8 +19,6 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final _authService = AuthService();
-
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
@@ -29,8 +27,12 @@ class MyApp extends StatelessWidget {
         textTheme:
             GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
       ),
-      initialRoute: _authService.isLoggedIn ? '/home' : '/login',
+      initialRoute: '/splash',
       getPages: [
+        GetPage(
+          name: '/splash',
+          page: () => SplashScreen(),
+        ),
         GetPage(
           name: '/login',
           page: () => LoginScreen(),
