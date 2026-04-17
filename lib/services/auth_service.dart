@@ -1,0 +1,140 @@
+import 'package:doctor_consultation_app/models/user_model.dart';
+
+class AuthService {
+  static final AuthService _instance = AuthService._internal();
+
+  factory AuthService() {
+    return _instance;
+  }
+
+  AuthService._internal();
+
+  // Simulated storage - replace with real backend/database
+  UserModel? _currentUser;
+
+  UserModel? get currentUser => _currentUser;
+
+  bool get isLoggedIn => _currentUser != null;
+
+  // Simulated user database - replace with real backend
+  final Map<String, String> _userDatabase = {
+    'test@example.com': 'password123',
+  };
+
+  /// Login with email and password
+  Future<bool> login(String email, String password) async {
+    try {
+      await Future.delayed(Duration(seconds: 1)); // Simulate API call
+
+      // Basic validation
+      if (email.isEmpty || password.isEmpty) {
+        throw 'Email and password cannot be empty';
+      }
+
+      if (!_userDatabase.containsKey(email)) {
+        throw 'User not found';
+      }
+
+      if (_userDatabase[email] != password) {
+        throw 'Invalid password';
+      }
+
+      // Create user object (in real app, get from backend)
+      _currentUser = UserModel(
+        id: email.split('@')[0],
+        email: email,
+        firstName: email.split('@')[0],
+        lastName: 'User',
+        phone: '+1234567890',
+        profileImage: '',
+        bio: '',
+        createdAt: DateTime.now(),
+      );
+
+      return true;
+    } catch (e) {
+      print('Login error: $e');
+      rethrow;
+    }
+  }
+
+  /// Sign up with email and password
+  Future<bool> signup(String email, String firstName, String lastName,
+      String phone, String password) async {
+    try {
+      await Future.delayed(Duration(seconds: 1)); // Simulate API call
+
+      // Basic validation
+      if (email.isEmpty ||
+          password.isEmpty ||
+          firstName.isEmpty ||
+          lastName.isEmpty ||
+          phone.isEmpty) {
+        throw 'All fields are required';
+      }
+
+      if (!_isValidEmail(email)) {
+        throw 'Invalid email format';
+      }
+
+      if (password.length < 6) {
+        throw 'Password must be at least 6 characters';
+      }
+
+      if (_userDatabase.containsKey(email)) {
+        throw 'Email already registered';
+      }
+
+      // Add to database (in real app, send to backend)
+      _userDatabase[email] = password;
+
+      // Create user object
+      _currentUser = UserModel(
+        id: email.split('@')[0],
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone,
+        profileImage: '',
+        bio: '',
+        createdAt: DateTime.now(),
+      );
+
+      return true;
+    } catch (e) {
+      print('Signup error: $e');
+      rethrow;
+    }
+  }
+
+  /// Logout
+  void logout() {
+    _currentUser = null;
+  }
+
+  /// Reset password
+  Future<bool> resetPassword(String email) async {
+    try {
+      await Future.delayed(Duration(seconds: 1)); // Simulate API call
+
+      if (!_isValidEmail(email)) {
+        throw 'Invalid email format';
+      }
+
+      if (!_userDatabase.containsKey(email)) {
+        throw 'Email not found';
+      }
+
+      // In real app, send reset link to email
+      return true;
+    } catch (e) {
+      print('Reset password error: $e');
+      rethrow;
+    }
+  }
+
+  /// Helper method to validate email
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
+  }
+}
