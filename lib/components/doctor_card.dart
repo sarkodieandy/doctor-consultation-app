@@ -3,10 +3,10 @@ import 'package:doctor_consultation_app/screens/detail_screen.dart';
 import 'package:flutter/material.dart';
 
 class DoctorCard extends StatelessWidget {
-  var _name;
-  var _description;
-  var _imageUrl;
-  var _bgColor;
+  final String _name;
+  final String _description;
+  final String _imageUrl;
+  final Color _bgColor;
 
   DoctorCard(this._name, this._description, this._imageUrl, this._bgColor);
 

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
 class DetailScreen extends StatelessWidget {
-  var _name;
-  var _description;
-  var _imageUrl;
+  final String _name;
+  final String _description;
+  final String _imageUrl;
 
   DetailScreen(this._name, this._description, this._imageUrl);
 

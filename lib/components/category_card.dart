@@ -2,9 +2,9 @@ import 'package:doctor_consultation_app/constant.dart';
 import 'package:flutter/material.dart';
 
 class CategoryCard extends StatelessWidget {
-  var _title;
-  var _imageUrl;
-  var _bgColor;
+  final String _title;
+  final String _imageUrl;
+  final Color _bgColor;
 
   CategoryCard(this._title, this._imageUrl, this._bgColor);
 

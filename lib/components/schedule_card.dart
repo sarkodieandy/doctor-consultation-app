@@ -2,11 +2,11 @@ import 'package:doctor_consultation_app/constant.dart';
 import 'package:flutter/material.dart';
 
 class ScheduleCard extends StatelessWidget {
-  var _title;
-  var _description;
-  var _date;
-  var _month;
-  var _bgColor;
+  final String _title;
+  final String _description;
+  final String _date;
+  final String _month;
+  final Color _bgColor;
 
   ScheduleCard(
       this._title, this._description, this._date, this._month, this._bgColor);

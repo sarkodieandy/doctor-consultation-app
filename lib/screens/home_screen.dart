@@ -1,6 +1,7 @@
 import 'package:doctor_consultation_app/components/category_card.dart';
 import 'package:doctor_consultation_app/components/doctor_card.dart';
-import 'package:doctor_consultation_app/components/search_bar.dart';
+import 'package:doctor_consultation_app/components/search_bar.dart'
+    as custom_search;
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -45,7 +46,7 @@ class HomeScreen extends StatelessWidget {
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
-                child: SearchBar(),
+                child: custom_search.SearchBar(),
               ),
               SizedBox(
                 height: 20,
