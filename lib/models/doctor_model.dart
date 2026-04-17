@@ -1,0 +1,93 @@
+class DoctorModel {
+  final String id;
+  final String name;
+  final String specialty;
+  final String description;
+  final String imageUrl;
+  final double rating;
+  final int reviewCount;
+  final double consultationFee;
+  final String experience;
+  final String hospital;
+  final bool available;
+  final List<String> availableTimes;
+
+  DoctorModel({
+    required this.id,
+    required this.name,
+    required this.specialty,
+    required this.description,
+    required this.imageUrl,
+    this.rating = 4.5,
+    this.reviewCount = 0,
+    required this.consultationFee,
+    required this.experience,
+    required this.hospital,
+    this.available = true,
+    this.availableTimes = const [],
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'specialty': specialty,
+      'description': description,
+      'imageUrl': imageUrl,
+      'rating': rating,
+      'reviewCount': reviewCount,
+      'consultationFee': consultationFee,
+      'experience': experience,
+      'hospital': hospital,
+      'available': available,
+      'availableTimes': availableTimes,
+    };
+  }
+
+  factory DoctorModel.fromJson(Map<String, dynamic> json) {
+    return DoctorModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      specialty: json['specialty'] ?? '',
+      description: json['description'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
+      rating: (json['rating'] ?? 4.5).toDouble(),
+      reviewCount: json['reviewCount'] ?? 0,
+      consultationFee: (json['consultationFee'] ?? 0).toDouble(),
+      experience: json['experience'] ?? '',
+      hospital: json['hospital'] ?? '',
+      available: json['available'] ?? true,
+      availableTimes: List<String>.from(json['availableTimes'] ?? []),
+    );
+  }
+
+  DoctorModel copyWith({
+    String? id,
+    String? name,
+    String? specialty,
+    String? description,
+    String? imageUrl,
+    double? rating,
+    int? reviewCount,
+    double? consultationFee,
+    String? experience,
+    String? hospital,
+    bool? available,
+    List<String>? availableTimes,
+  }) {
+    return DoctorModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      specialty: specialty ?? this.specialty,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      consultationFee: consultationFee ?? this.consultationFee,
+      experience: experience ?? this.experience,
+      hospital: hospital ?? this.hospital,
+      available: available ?? this.available,
+      availableTimes: availableTimes ?? this.availableTimes,
+    );
+  }
+}
