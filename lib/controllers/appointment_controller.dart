@@ -2,12 +2,14 @@ import 'package:doctor_consultation_app/models/appointment_model.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/models/payment_model.dart';
 import 'package:doctor_consultation_app/services/api_service.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:doctor_consultation_app/services/payment_service.dart';
 import 'package:get/get.dart';
 
 class AppointmentController extends GetxController {
   final _apiService = ApiService();
+  final _authService = AuthService();
   final _paymentService = PaymentService();
   final _notificationService = NotificationService();
 
@@ -24,7 +26,7 @@ class AppointmentController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _userId = Get.arguments ?? '';
+    _userId = _authService.resolveUserId(fallback: Get.arguments);
   }
 
   /// Fetch all doctors

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
+  Timer? _doctorCarouselTimer;
+  Timer? _navigationTimer;
 
   int _currentDoctorIndex = 0;
   final List<String> doctors = [
@@ -71,7 +75,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startDoctorCarousel() {
-    Future.delayed(Duration(milliseconds: 500), () {
+    _doctorCarouselTimer?.cancel();
+    _doctorCarouselTimer = Timer(Duration(milliseconds: 500), () {
       if (mounted) {
         _changeDoctorImage();
       }
@@ -87,9 +92,8 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         _scaleController.forward(from: 0.0).then((_) {
           if (mounted) {
-            Future.delayed(Duration(seconds: 2), () {
-              _changeDoctorImage();
-            });
+            _doctorCarouselTimer?.cancel();
+            _doctorCarouselTimer = Timer(Duration(seconds: 2), _changeDoctorImage);
           }
         });
       }
@@ -97,7 +101,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToNextScreen() {
-    Future.delayed(Duration(seconds: 4), () {
+    _navigationTimer?.cancel();
+    _navigationTimer = Timer(Duration(seconds: 4), () {
       if (mounted) {
         final authService = AuthService();
         if (authService.isLoggedIn) {
@@ -111,6 +116,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _doctorCarouselTimer?.cancel();
+    _navigationTimer?.cancel();
     _fadeController.dispose();
     _slideController.dispose();
     _scaleController.dispose();

@@ -27,7 +27,9 @@ class NotificationService {
       iOS: darwinInitializationSettings,
     );
 
-    await _notificationsPlugin.initialize(initializationSettings);
+    await _notificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
   }
 
   /// Send appointment reminder notification
@@ -172,10 +174,10 @@ class NotificationService {
     );
 
     await _notificationsPlugin.show(
-      id,
-      title,
-      body,
-      notificationDetails,
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: notificationDetails,
     );
   }
 

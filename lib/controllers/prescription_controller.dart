@@ -1,8 +1,10 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/prescription_service.dart';
 import 'package:get/get.dart';
 
 class PrescriptionController extends GetxController {
+  final _authService = AuthService();
   final _prescriptionService = PrescriptionService();
 
   final allPrescriptions = <PrescriptionModel>[].obs;
@@ -17,7 +19,7 @@ class PrescriptionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _userId = Get.arguments ?? 'user_123';
+    _userId = _authService.resolveUserId(fallback: Get.arguments);
     fetchAllPrescriptions();
   }
 

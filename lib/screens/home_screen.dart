@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 35,
-                                backgroundImage: NetworkImage(doctor.imageUrl),
+                                backgroundImage: doctor.imageProvider,
                               ),
                               SizedBox(width: 15),
                               Expanded(

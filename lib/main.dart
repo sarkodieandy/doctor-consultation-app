@@ -22,6 +22,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+void ensureAppointmentController() {
+  if (!Get.isRegistered<AppointmentController>()) {
+    Get.put<AppointmentController>(AppointmentController());
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final notificationService = NotificationService();
@@ -55,23 +61,24 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/home',
           page: () => HomeScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<AppointmentController>(() => AppointmentController());
-          }),
+          binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
           name: '/booking',
           page: () => BookingScreen(
             doctor: Get.arguments,
           ),
+          binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
           name: '/payment',
           page: () => PaymentScreen(),
+          binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
           name: '/appointments',
           page: () => MyAppointmentsScreen(),
+          binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
           name: '/profile',

@@ -1,8 +1,10 @@
 import 'package:doctor_consultation_app/models/health_record_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/health_record_service.dart';
 import 'package:get/get.dart';
 
 class HealthRecordController extends GetxController {
+  final _authService = AuthService();
   final _healthService = HealthRecordService();
 
   final allRecords = <HealthRecordModel>[].obs;
@@ -18,7 +20,7 @@ class HealthRecordController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _userId = Get.arguments ?? 'user_123';
+    _userId = _authService.resolveUserId(fallback: Get.arguments);
     fetchAllRecords();
   }
 

@@ -1,8 +1,10 @@
 import 'package:doctor_consultation_app/models/consultation_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/consultation_service.dart';
 import 'package:get/get.dart';
 
 class ConsultationController extends GetxController {
+  final _authService = AuthService();
   final _consultationService = ConsultationService();
 
   final consultations = <ConsultationModel>[].obs;
@@ -17,7 +19,7 @@ class ConsultationController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _userId = Get.arguments ?? 'user_123';
+    _userId = _authService.resolveUserId(fallback: Get.arguments);
     fetchConsultations();
   }
 

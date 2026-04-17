@@ -16,6 +16,33 @@ class AuthService {
 
   bool get isLoggedIn => _currentUser != null;
 
+  String resolveUserId({
+    Object? fallback,
+    String defaultValue = 'user_123',
+  }) {
+    final currentUserId = _normalizeUserId(_currentUser?.id);
+    if (currentUserId != null) {
+      return currentUserId;
+    }
+
+    if (fallback is String) {
+      return _normalizeUserId(fallback) ?? defaultValue;
+    }
+
+    if (fallback is Map) {
+      final fallbackUserId = fallback['userId'];
+      if (fallbackUserId is String) {
+        return _normalizeUserId(fallbackUserId) ?? defaultValue;
+      }
+
+      if (fallbackUserId != null) {
+        return _normalizeUserId(fallbackUserId.toString()) ?? defaultValue;
+      }
+    }
+
+    return defaultValue;
+  }
+
   // Simulated user database - replace with real backend
   final Map<String, String> _userDatabase = {
     'test@example.com': 'password123',
@@ -129,5 +156,10 @@ class AuthService {
   /// Helper method to validate email
   bool _isValidEmail(String email) {
     return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
+  }
+
+  String? _normalizeUserId(String? userId) {
+    final normalized = userId?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
   }
 }

@@ -89,7 +89,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundImage: NetworkImage(widget.doctor.imageUrl),
+                      backgroundImage: widget.doctor.imageProvider,
                     ),
                     SizedBox(width: 15),
                     Expanded(

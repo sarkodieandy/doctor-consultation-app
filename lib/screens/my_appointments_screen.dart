@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 class MyAppointmentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(AppointmentController());
+    final controller = Get.find<AppointmentController>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.fetchUserAppointments();

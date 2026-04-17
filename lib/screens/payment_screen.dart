@@ -1,6 +1,7 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:doctor_consultation_app/services/payment_service.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +21,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final paymentService = PaymentService();
   final notificationService = NotificationService();
   final controller = Get.find<AppointmentController>();
+  final authService = AuthService();
 
   bool isProcessing = false;
+  String? _pendingAppointmentId;
 
   @override
   void initState() {
@@ -359,33 +362,50 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   void _processRazorpayPayment() {
+    final user = authService.currentUser;
+    if (user == null) {
+      _showMessage('Please log in again before making a payment.');
+      return;
+    }
+
+    _pendingAppointmentId = 'apt_${DateTime.now().millisecondsSinceEpoch}';
     setState(() => isProcessing = true);
 
     paymentService.processPayment(
-      appointmentId: 'apt_${DateTime.now().millisecondsSinceEpoch}',
+      appointmentId: _pendingAppointmentId!,
       doctorId: doctor.id,
-      userId: 'user_123',
+      userId: user.id,
       amount: doctor.consultationFee + 50,
-      userEmail: 'user@example.com',
-      userName: 'User Name',
+      userEmail: user.email,
+      userName: user.fullName.trim(),
     );
   }
 
-  void _handlePaymentSuccess(dynamic payment) {
+  Future<void> _handlePaymentSuccess(dynamic payment) async {
     setState(() => isProcessing = false);
 
-    // Book appointment
-    controller.bookAppointment(
+    final appointmentBooked = await controller.bookAppointment(
       doctor.id,
       appointmentDate,
       appointmentTime,
     );
 
-    // Send notification
-    notificationService.sendPaymentSuccess(
-      paymentId: payment.transactionId ?? '',
+    if (!mounted) {
+      return;
+    }
+
+    if (!appointmentBooked) {
+      _showMessage(
+        controller.errorMessage.value ??
+            'Payment was completed, but the appointment could not be created.',
+      );
+      return;
+    }
+
+    await notificationService.sendPaymentSuccess(
+      paymentId: payment.transactionId ?? 'payment_${DateTime.now().millisecondsSinceEpoch}',
       amount: doctor.consultationFee + 50,
-      appointmentId: 'apt_123',
+      appointmentId: _pendingAppointmentId ?? '',
     );
 
     _showSuccessDialog();

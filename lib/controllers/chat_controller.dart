@@ -1,8 +1,10 @@
 import 'package:doctor_consultation_app/models/chat_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/chat_service.dart';
 import 'package:get/get.dart';
 
 class ChatController extends GetxController {
+  final _authService = AuthService();
   final _chatService = ChatService();
 
   final chats = <ChatModel>[].obs;
@@ -17,7 +19,7 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _userId = Get.arguments ?? 'user_123';
+    _userId = _authService.resolveUserId(fallback: Get.arguments);
     fetchChats();
   }
 

@@ -1,4 +1,8 @@
+import 'package:flutter/painting.dart';
+
 class DoctorModel {
+  static const String fallbackImagePath = 'assets/images/doctor1.png';
+
   final String id;
   final String name;
   final String specialty;
@@ -26,6 +30,20 @@ class DoctorModel {
     this.available = true,
     this.availableTimes = const [],
   });
+
+  ImageProvider<Object> get imageProvider {
+    final resolvedImageUrl = imageUrl.trim();
+
+    if (resolvedImageUrl.isEmpty) {
+      return const AssetImage(fallbackImagePath);
+    }
+
+    if (resolvedImageUrl.startsWith('assets/')) {
+      return AssetImage(resolvedImageUrl);
+    }
+
+    return NetworkImage(resolvedImageUrl);
+  }
 
   Map<String, dynamic> toJson() {
     return {
