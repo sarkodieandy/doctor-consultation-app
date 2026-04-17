@@ -1,12 +1,27 @@
 import 'package:doctor_consultation_app/components/category_card.dart';
-import 'package:doctor_consultation_app/components/doctor_card.dart';
 import 'package:doctor_consultation_app/components/search_bar.dart'
     as custom_search;
 import 'package:doctor_consultation_app/constant.dart';
+import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late AppointmentController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.find<AppointmentController>();
+    _controller.fetchDoctors();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,8 +37,18 @@ class HomeScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    SvgPicture.asset('assets/icons/menu.svg'),
-                    SvgPicture.asset('assets/icons/profile.svg'),
+                    InkWell(
+                      onTap: () {
+                        Get.toNamed('/profile');
+                      },
+                      child: SvgPicture.asset('assets/icons/menu.svg'),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Get.toNamed('/appointments');
+                      },
+                      child: SvgPicture.asset('assets/icons/profile.svg'),
+                    ),
                   ],
                 ),
               ),
@@ -129,41 +154,133 @@ class HomeScreen extends StatelessWidget {
   }
 
   buildDoctorList() {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: 30,
-      ),
-      child: Column(
-        children: <Widget>[
-          DoctorCard(
-            'Dr. Stella Kane',
-            'Heart Surgeon - Flower Hospitals',
-            'assets/images/doctor1.png',
-            kBlueColor,
+    return Obx(
+      () {
+        if (_controller.isLoading.value) {
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Center(
+              child: CircularProgressIndicator(color: kOrangeColor),
+            ),
+          );
+        }
+
+        if (_controller.doctors.isEmpty) {
+          return Padding(
+            padding: EdgeInsets.all(30),
+            child: Center(
+              child: Text('No doctors found'),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 30),
+          child: Column(
+            children: List.generate(
+              _controller.doctors.length,
+              (index) {
+                final doctor = _controller.doctors[index];
+                return Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: kWhiteColor,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 35,
+                                backgroundImage: NetworkImage(doctor.imageUrl),
+                              ),
+                              SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      doctor.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: kTitleTextColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      doctor.specialty,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: kBlueColor,
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.star,
+                                            color: kYellowColor, size: 12),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          '${doctor.rating} (${doctor.reviewCount})',
+                                          style: TextStyle(fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '₹${doctor.consultationFee.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: kOrangeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: MaterialButton(
+                              onPressed: () {
+                                Get.toNamed('/booking', arguments: doctor);
+                              },
+                              color: kOrangeColor,
+                              height: 40,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Book Appointment',
+                                style: TextStyle(
+                                  color: kWhiteColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                  ],
+                );
+              },
+            ),
           ),
-          SizedBox(
-            height: 20,
-          ),
-          DoctorCard(
-            'Dr. Joseph Cart',
-            'Dental Surgeon - Flower Hospitals',
-            'assets/images/doctor2.png',
-            kYellowColor,
-          ),
-          SizedBox(
-            height: 20,
-          ),
-          DoctorCard(
-            'Dr. Stephanie',
-            'Eye Specialist - Flower Hospitals',
-            'assets/images/doctor3.png',
-            kOrangeColor,
-          ),
-          SizedBox(
-            height: 20,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
