@@ -107,12 +107,26 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         final authService = AuthService();
         if (authService.isLoggedIn) {
-          await authService.initSession();
+          try {
+            // Add 5-second timeout to prevent infinite hang
+            await authService.initSession().timeout(
+              Duration(seconds: 5),
+              onTimeout: () {
+                print('⚠️ Auth init timeout - navigating to login');
+              },
+            );
+          } catch (e) {
+            print('❌ Auth error during init: $e');
+          }
+
           final user = authService.currentUser;
           if (user != null && user.isDoctor) {
             Get.offNamed('/doctor-home');
-          } else {
+          } else if (user != null) {
             Get.offNamed('/home');
+          } else {
+            // If user fetch failed, go to login
+            Get.offNamed('/login');
           }
         } else {
           Get.offNamed('/login');

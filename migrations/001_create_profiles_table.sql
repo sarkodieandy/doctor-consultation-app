@@ -5,6 +5,25 @@
 -- ================================================================
 
 -- =====================
+-- 0. DROP EXISTING TABLES (clean slate)
+-- =====================
+DROP TABLE IF EXISTS public.doctor_earnings CASCADE;
+DROP TABLE IF EXISTS public.doctor_schedules CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.health_records CASCADE;
+DROP TABLE IF EXISTS public.reviews CASCADE;
+DROP TABLE IF EXISTS public.medicines CASCADE;
+DROP TABLE IF EXISTS public.prescriptions CASCADE;
+DROP TABLE IF EXISTS public.messages CASCADE;
+DROP TABLE IF EXISTS public.chat_sessions CASCADE;
+DROP TABLE IF EXISTS public.consultations CASCADE;
+DROP TABLE IF EXISTS public.payments CASCADE;
+DROP TABLE IF EXISTS public.appointments CASCADE;
+DROP TABLE IF EXISTS public.doctors CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP FUNCTION IF EXISTS public.update_updated_at() CASCADE;
+
+-- =====================
 -- 1. PROFILES TABLE
 -- =====================
 CREATE TABLE IF NOT EXISTS public.profiles (

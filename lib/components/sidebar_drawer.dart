@@ -152,7 +152,11 @@ class _SidebarDrawerState extends State<SidebarDrawer>
   }
 
   Widget _buildMenuList() {
-    final items = <_MenuItem>[
+    final user = _authService.currentUser;
+    final isDoctor = user?.role.toString() == 'UserRole.doctor';
+
+    // Patient menu items
+    final patientItems = <_MenuItem>[
       _MenuItem(Icons.home_rounded, 'Home', '/home'),
       _MenuItem(Icons.person_rounded, 'Profile', '/profile'),
       _MenuItem(Icons.calendar_today_rounded, 'Appointments', '/appointments'),
@@ -162,6 +166,19 @@ class _SidebarDrawerState extends State<SidebarDrawer>
       _MenuItem(Icons.videocam_rounded, 'Consultations', '/consultations'),
       _MenuItem(Icons.star_rounded, 'Reviews', '/reviews'),
     ];
+
+    // Doctor menu items
+    final doctorItems = <_MenuItem>[
+      _MenuItem(Icons.home_rounded, 'Dashboard', '/doctor-home'),
+      _MenuItem(Icons.person_rounded, 'Profile', '/doctor-profile-edit'),
+      _MenuItem(Icons.calendar_today_rounded, 'Schedule', '/doctor-schedule'),
+      _MenuItem(
+          Icons.event_note_rounded, 'Appointments', '/doctor-appointments'),
+      _MenuItem(Icons.chat_bubble_rounded, 'Messages', '/chat'),
+      _MenuItem(Icons.attach_money_rounded, 'Earnings', '/doctor-earnings'),
+    ];
+
+    final items = isDoctor ? doctorItems : patientItems;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -183,38 +200,37 @@ class _SidebarDrawerState extends State<SidebarDrawer>
               ),
             );
           },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            decoration: BoxDecoration(
-              color: isCurrentRoute
-                  ? kOrangeColor.withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: ListTile(
-              leading: Icon(
-                item.icon,
-                color: isCurrentRoute ? kOrangeColor : kTitleTextColor,
-                size: 24,
-              ),
-              title: Text(
-                item.label,
-                style: TextStyle(
-                  fontWeight:
-                      isCurrentRoute ? FontWeight.bold : FontWeight.w500,
+          child: Material(
+            color: isCurrentRoute
+                ? kOrangeColor.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(15),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  item.icon,
                   color: isCurrentRoute ? kOrangeColor : kTitleTextColor,
-                  fontSize: 15,
+                  size: 24,
                 ),
+                title: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontWeight:
+                        isCurrentRoute ? FontWeight.bold : FontWeight.w500,
+                    color: isCurrentRoute ? kOrangeColor : kTitleTextColor,
+                    fontSize: 15,
+                  ),
+                ),
+                onTap: () async {
+                  await _closeDrawer();
+                  if (!isCurrentRoute) {
+                    Get.toNamed(item.route);
+                  }
+                },
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              onTap: () async {
-                await _closeDrawer();
-                if (!isCurrentRoute) {
-                  Get.toNamed(item.route);
-                }
-              },
             ),
           ),
         );

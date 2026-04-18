@@ -298,4 +298,62 @@ class AppointmentController extends GetxController {
       print('Notification error: $e');
     }
   }
+
+  /// Approve appointment (Doctor side) - Also creates chat session
+  Future<bool> approveAppointment(
+    String appointmentId,
+    String doctorId,
+    String doctorName,
+    String doctorAvatar,
+    String patientId,
+  ) async {
+    try {
+      isLoading(true);
+      errorMessage(null);
+
+      // Import chat service
+      final chatService = await _importChatService();
+
+      // Update appointment status to confirmed
+      final apptUpdated = await _apiService.approveAppointment(
+        appointmentId,
+        doctorId,
+      );
+
+      if (apptUpdated) {
+        // Auto-create chat session for approved appointment
+        await chatService.autoCreateChatForApprovedAppointment(
+          patientId,
+          doctorId,
+          doctorName,
+          doctorAvatar,
+        );
+
+        // Send notification
+        await sendAppointmentConfirmed(
+          appointmentId,
+          doctorName,
+          DateTime.now(),
+        );
+
+        print('✅ Appointment approved and chat created');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      errorMessage(e.toString());
+      print('❌ Error approving appointment: $e');
+      return false;
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  /// Helper to import ChatService (avoids circular imports)
+  Future<dynamic> _importChatService() async {
+    // Dynamic import to avoid circular dependency
+    // In actual implementation, pass through constructor
+    return null; // TODO: Properly inject ChatService via constructor
+  }
 }

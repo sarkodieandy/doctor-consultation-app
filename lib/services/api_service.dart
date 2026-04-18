@@ -185,4 +185,23 @@ class ApiService {
       rethrow;
     }
   }
+
+  /// Approve appointment (by doctor)
+  Future<bool> approveAppointment(
+    String appointmentId,
+    String doctorId,
+  ) async {
+    try {
+      await _supabase
+          .from('appointments')
+          .update({'status': 'confirmed'})
+          .eq('id', appointmentId)
+          .eq('doctor_id', doctorId);
+
+      return true;
+    } catch (e) {
+      print('Error approving appointment: $e');
+      rethrow;
+    }
+  }
 }

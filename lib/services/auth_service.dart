@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:doctor_consultation_app/models/user_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -64,15 +65,19 @@ class AuthService {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(
+            Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('Profile fetch timeout'),
+          );
 
       if (data != null) {
         return UserModel.fromJson(data);
       }
       return null;
     } catch (e) {
-      print('Error fetching profile: \$e');
-      return null;
+      print('❌ Error fetching profile: $e');
+      rethrow;
     }
   }
 
@@ -87,9 +92,20 @@ class AuthService {
 
   /// Initialize current user from existing Supabase session
   Future<void> initSession() async {
-    final authUser = _supabase.auth.currentUser;
-    if (authUser != null) {
-      _currentUser = await _fetchProfile(authUser.id);
+    try {
+      final authUser = _supabase.auth.currentUser;
+      if (authUser != null) {
+        _currentUser = await _fetchProfile(authUser.id).timeout(
+          Duration(seconds: 5),
+          onTimeout: () {
+            print('⚠️ Profile fetch timeout for user: ${authUser.id}');
+            return null;
+          },
+        );
+      }
+    } catch (e) {
+      print('❌ Error initializing session: $e');
+      // Don't rethrow - allow app to continue even if profile fetch fails
     }
   }
 
