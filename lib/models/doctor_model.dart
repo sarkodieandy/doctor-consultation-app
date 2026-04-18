@@ -51,31 +51,33 @@ class DoctorModel {
       'name': name,
       'specialty': specialty,
       'description': description,
-      'imageUrl': imageUrl,
+      'image_url': imageUrl,
       'rating': rating,
-      'reviewCount': reviewCount,
-      'consultationFee': consultationFee,
+      'review_count': reviewCount,
+      'consultation_fee': consultationFee,
       'experience': experience,
       'hospital': hospital,
       'available': available,
-      'availableTimes': availableTimes,
+      'available_times': availableTimes,
     };
   }
 
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     return DoctorModel(
-      id: json['id'] ?? '',
+      id: (json['id'] ?? '').toString(),
       name: json['name'] ?? '',
       specialty: json['specialty'] ?? '',
       description: json['description'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
+      imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
       rating: (json['rating'] ?? 4.5).toDouble(),
-      reviewCount: json['reviewCount'] ?? 0,
-      consultationFee: (json['consultationFee'] ?? 0).toDouble(),
+      reviewCount: json['review_count'] ?? json['reviewCount'] ?? 0,
+      consultationFee:
+          (json['consultation_fee'] ?? json['consultationFee'] ?? 0).toDouble(),
       experience: json['experience'] ?? '',
       hospital: json['hospital'] ?? '',
       available: json['available'] ?? true,
-      availableTimes: List<String>.from(json['availableTimes'] ?? []),
+      availableTimes: List<String>.from(
+          json['available_times'] ?? json['availableTimes'] ?? []),
     );
   }
 

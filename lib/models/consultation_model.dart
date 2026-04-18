@@ -33,6 +33,54 @@ class ConsultationModel {
     this.endedAt,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'appointment_id': appointmentId,
+      'doctor_id': doctorId,
+      'doctor_name': doctorName,
+      'doctor_avatar': doctorAvatar,
+      'user_id': userId,
+      'scheduled_time': scheduledTime.toIso8601String(),
+      'duration_minutes': duration.inMinutes,
+      'status': status,
+      'consultation_type': consultationType,
+      'room_id': roomId,
+      'recording_url': recordingUrl,
+      'summary': summary,
+      'started_at': startedAt?.toIso8601String(),
+      'ended_at': endedAt?.toIso8601String(),
+    };
+  }
+
+  factory ConsultationModel.fromJson(Map<String, dynamic> json) {
+    return ConsultationModel(
+      id: (json['id'] ?? '').toString(),
+      appointmentId:
+          (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
+      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
+      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
+      doctorAvatar: json['doctor_avatar'] ?? json['doctorAvatar'] ?? '',
+      userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
+      scheduledTime: DateTime.parse(json['scheduled_time'] ??
+          json['scheduledTime'] ??
+          DateTime.now().toIso8601String()),
+      duration: Duration(minutes: json['duration_minutes'] ?? 30),
+      status: json['status'] ?? 'scheduled',
+      consultationType:
+          json['consultation_type'] ?? json['consultationType'] ?? 'video',
+      roomId: json['room_id'] ?? json['roomId'],
+      recordingUrl: json['recording_url'] ?? json['recordingUrl'],
+      summary: json['summary'],
+      startedAt: (json['started_at'] ?? json['startedAt']) != null
+          ? DateTime.parse(json['started_at'] ?? json['startedAt'])
+          : null,
+      endedAt: (json['ended_at'] ?? json['endedAt']) != null
+          ? DateTime.parse(json['ended_at'] ?? json['endedAt'])
+          : null,
+    );
+  }
+
   bool get isUpcoming =>
       status == 'scheduled' && DateTime.now().isBefore(scheduledTime);
   bool get isOngoing => status == 'ongoing';

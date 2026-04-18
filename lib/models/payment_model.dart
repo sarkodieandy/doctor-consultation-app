@@ -5,7 +5,7 @@ class PaymentModel {
   final String userId;
   final double amount;
   final String status; // pending, completed, failed, refunded
-  final String paymentMethod; // razorpay, credit_card, debit_card
+  final String paymentMethod; // paystack, mobile_money, credit_card
   final String transactionId;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -65,37 +65,40 @@ class PaymentModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'appointmentId': appointmentId,
-      'doctorId': doctorId,
-      'userId': userId,
+      'appointment_id': appointmentId,
+      'doctor_id': doctorId,
+      'user_id': userId,
       'amount': amount,
       'status': status,
-      'paymentMethod': paymentMethod,
-      'transactionId': transactionId,
-      'createdAt': createdAt.toIso8601String(),
-      'completedAt': completedAt?.toIso8601String(),
-      'receiptId': receiptId,
-      'failureReason': failureReason,
+      'payment_method': paymentMethod,
+      'transaction_id': transactionId,
+      'created_at': createdAt.toIso8601String(),
+      'completed_at': completedAt?.toIso8601String(),
+      'receipt_id': receiptId,
+      'failure_reason': failureReason,
     };
   }
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
     return PaymentModel(
-      id: json['id'] ?? '',
-      appointmentId: json['appointmentId'] ?? '',
-      doctorId: json['doctorId'] ?? '',
-      userId: json['userId'] ?? '',
+      id: (json['id'] ?? '').toString(),
+      appointmentId:
+          (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
+      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
+      userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
       amount: (json['amount'] ?? 0).toDouble(),
       status: json['status'] ?? 'pending',
-      paymentMethod: json['paymentMethod'] ?? 'razorpay',
-      transactionId: json['transactionId'] ?? '',
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'])
+      paymentMethod:
+          json['payment_method'] ?? json['paymentMethod'] ?? 'paystack',
+      transactionId: json['transaction_id'] ?? json['transactionId'] ?? '',
+      createdAt: DateTime.parse(json['created_at'] ??
+          json['createdAt'] ??
+          DateTime.now().toIso8601String()),
+      completedAt: (json['completed_at'] ?? json['completedAt']) != null
+          ? DateTime.parse(json['completed_at'] ?? json['completedAt'])
           : null,
-      receiptId: json['receiptId'],
-      failureReason: json['failureReason'],
+      receiptId: json['receipt_id'] ?? json['receiptId'],
+      failureReason: json['failure_reason'] ?? json['failureReason'],
     );
   }
 }

@@ -258,8 +258,8 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
                 width: double.infinity,
                 height: 50,
                 child: OutlinedButton(
-                  onPressed: () {
-                    _authService.logout();
+                  onPressed: () async {
+                    await _authService.logout();
                     Get.offAllNamed('/login');
                   },
                   style: OutlinedButton.styleFrom(

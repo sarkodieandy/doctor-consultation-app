@@ -3,6 +3,7 @@ class PrescriptionModel {
   final String doctorId;
   final String doctorName;
   final String appointmentId;
+  final String patientId;
   final DateTime prescribedDate;
   final DateTime? expiryDate;
   final List<Medicine> medicines;
@@ -15,6 +16,7 @@ class PrescriptionModel {
     required this.doctorId,
     required this.doctorName,
     required this.appointmentId,
+    this.patientId = '',
     required this.prescribedDate,
     this.expiryDate,
     required this.medicines,
@@ -22,6 +24,43 @@ class PrescriptionModel {
     required this.status,
     this.attachmentUrl,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'doctor_id': doctorId,
+      'doctor_name': doctorName,
+      'appointment_id': appointmentId,
+      'patient_id': patientId,
+      'prescribed_date': prescribedDate.toIso8601String(),
+      'expiry_date': expiryDate?.toIso8601String(),
+      'notes': notes,
+      'status': status,
+      'attachment_url': attachmentUrl,
+    };
+  }
+
+  factory PrescriptionModel.fromJson(Map<String, dynamic> json,
+      {List<Medicine>? medicines}) {
+    return PrescriptionModel(
+      id: (json['id'] ?? '').toString(),
+      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
+      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
+      appointmentId:
+          (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
+      patientId: (json['patient_id'] ?? '').toString(),
+      prescribedDate: DateTime.parse(json['prescribed_date'] ??
+          json['prescribedDate'] ??
+          DateTime.now().toIso8601String()),
+      expiryDate: (json['expiry_date'] ?? json['expiryDate']) != null
+          ? DateTime.parse(json['expiry_date'] ?? json['expiryDate'])
+          : null,
+      medicines: medicines ?? [],
+      notes: json['notes'] ?? '',
+      status: json['status'] ?? 'active',
+      attachmentUrl: json['attachment_url'] ?? json['attachmentUrl'],
+    );
+  }
 
   bool get isExpired =>
       expiryDate != null && DateTime.now().isAfter(expiryDate!);
@@ -56,6 +95,7 @@ class PrescriptionModel {
 
 class Medicine {
   final String id;
+  final String prescriptionId;
   final String name;
   final String dosage;
   final String frequency;
@@ -71,7 +111,35 @@ class Medicine {
     required this.duration,
     required this.instructions,
     required this.sideEffects,
+    this.prescriptionId = '',
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'prescription_id': prescriptionId,
+      'name': name,
+      'dosage': dosage,
+      'frequency': frequency,
+      'duration': duration,
+      'instructions': instructions,
+      'side_effects': sideEffects,
+    };
+  }
+
+  factory Medicine.fromJson(Map<String, dynamic> json) {
+    return Medicine(
+      id: (json['id'] ?? '').toString(),
+      prescriptionId: (json['prescription_id'] ?? '').toString(),
+      name: json['name'] ?? '',
+      dosage: json['dosage'] ?? '',
+      frequency: json['frequency'] ?? '',
+      duration: json['duration'] ?? 0,
+      instructions: json['instructions'] ?? '',
+      sideEffects:
+          List<String>.from(json['side_effects'] ?? json['sideEffects'] ?? []),
+    );
+  }
 
   Medicine copyWith({
     String? id,

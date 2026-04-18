@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/consultation_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ConsultationService {
   static final ConsultationService _instance = ConsultationService._internal();
@@ -9,74 +10,83 @@ class ConsultationService {
 
   ConsultationService._internal();
 
-  final List<ConsultationModel> _mockConsultations = [
-    ConsultationModel(
-      id: 'cons_1',
-      appointmentId: 'apt_1',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      userId: 'user_123',
-      scheduledTime: DateTime.now().add(Duration(hours: 2)),
-      duration: Duration(minutes: 30),
-      status: 'scheduled',
-      consultationType: 'video',
-      roomId: 'room_001',
-    ),
-    ConsultationModel(
-      id: 'cons_2',
-      appointmentId: 'apt_2',
-      doctorId: 'doc_2',
-      doctorName: 'Dr. Joseph Cart',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=400',
-      userId: 'user_123',
-      scheduledTime: DateTime.now().subtract(Duration(days: 2)),
-      duration: Duration(minutes: 20),
-      status: 'completed',
-      consultationType: 'video',
-      roomId: 'room_002',
-      startedAt: DateTime.now().subtract(Duration(days: 2, hours: 1)),
-      endedAt:
-          DateTime.now().subtract(Duration(days: 2, hours: 1, minutes: 20)),
-      recordingUrl: 'https://example.com/recordings/cons_2.mp4',
-      summary: 'Discussed dental hygiene and scheduled follow-up',
-    ),
-  ];
+  final _supabase = Supabase.instance.client;
 
   /// Get all consultations
   Future<List<ConsultationModel>> getConsultations(String userId) async {
-    await Future.delayed(Duration(milliseconds: 500));
-    return _mockConsultations;
+    try {
+      final data = await _supabase
+          .from('consultations')
+          .select()
+          .eq('user_id', userId)
+          .order('scheduled_time', ascending: false);
+
+      return (data as List)
+          .map((json) => ConsultationModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching consultations: $e');
+      return [];
+    }
   }
 
   /// Get upcoming consultations
   Future<List<ConsultationModel>> getUpcomingConsultations(
-    String userId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockConsultations
-        .where((c) => c.status == 'scheduled' && c.isUpcoming)
-        .toList();
+      String userId) async {
+    try {
+      final data = await _supabase
+          .from('consultations')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'scheduled')
+          .gte('scheduled_time', DateTime.now().toIso8601String())
+          .order('scheduled_time', ascending: true);
+
+      return (data as List)
+          .map((json) => ConsultationModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching upcoming consultations: $e');
+      return [];
+    }
   }
 
   /// Get completed consultations
   Future<List<ConsultationModel>> getCompletedConsultations(
-    String userId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockConsultations.where((c) => c.isCompleted).toList();
+      String userId) async {
+    try {
+      final data = await _supabase
+          .from('consultations')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .order('ended_at', ascending: false);
+
+      return (data as List)
+          .map((json) => ConsultationModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching completed consultations: $e');
+      return [];
+    }
   }
 
   /// Get consultation details
   Future<ConsultationModel?> getConsultationDetails(
-    String consultationId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
+      String consultationId) async {
     try {
-      return _mockConsultations.firstWhere((c) => c.id == consultationId);
+      final data = await _supabase
+          .from('consultations')
+          .select()
+          .eq('id', consultationId)
+          .maybeSingle();
+
+      if (data != null) {
+        return ConsultationModel.fromJson(data);
+      }
+      return null;
     } catch (e) {
+      print('Error fetching consultation details: $e');
       return null;
     }
   }
@@ -84,43 +94,28 @@ class ConsultationService {
   /// Start consultation
   Future<bool> startConsultation(String consultationId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      final index =
-          _mockConsultations.indexWhere((c) => c.id == consultationId);
-      if (index != -1) {
-        final consultation = _mockConsultations[index];
-        _mockConsultations[index] = consultation.copyWith(
-          status: 'ongoing',
-          startedAt: DateTime.now(),
-        );
-        return true;
-      }
-      return false;
+      await _supabase.from('consultations').update({
+        'status': 'ongoing',
+        'started_at': DateTime.now().toIso8601String(),
+      }).eq('id', consultationId);
+      return true;
     } catch (e) {
+      print('Error starting consultation: $e');
       return false;
     }
   }
 
   /// End consultation
-  Future<bool> endConsultation(
-    String consultationId,
-    String? summary,
-  ) async {
+  Future<bool> endConsultation(String consultationId, String? summary) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      final index =
-          _mockConsultations.indexWhere((c) => c.id == consultationId);
-      if (index != -1) {
-        final consultation = _mockConsultations[index];
-        _mockConsultations[index] = consultation.copyWith(
-          status: 'completed',
-          endedAt: DateTime.now(),
-          summary: summary,
-        );
-        return true;
-      }
-      return false;
+      await _supabase.from('consultations').update({
+        'status': 'completed',
+        'ended_at': DateTime.now().toIso8601String(),
+        'summary': summary,
+      }).eq('id', consultationId);
+      return true;
     } catch (e) {
+      print('Error ending consultation: $e');
       return false;
     }
   }
@@ -128,49 +123,41 @@ class ConsultationService {
   /// Cancel consultation
   Future<bool> cancelConsultation(String consultationId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      final index =
-          _mockConsultations.indexWhere((c) => c.id == consultationId);
-      if (index != -1) {
-        final consultation = _mockConsultations[index];
-        _mockConsultations[index] = consultation.copyWith(status: 'cancelled');
-        return true;
-      }
-      return false;
+      await _supabase
+          .from('consultations')
+          .update({'status': 'cancelled'}).eq('id', consultationId);
+      return true;
     } catch (e) {
+      print('Error cancelling consultation: $e');
       return false;
     }
   }
 
   /// Reschedule consultation
   Future<bool> rescheduleConsultation(
-    String consultationId,
-    DateTime newTime,
-  ) async {
+      String consultationId, DateTime newTime) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      final index =
-          _mockConsultations.indexWhere((c) => c.id == consultationId);
-      if (index != -1) {
-        final consultation = _mockConsultations[index];
-        _mockConsultations[index] = consultation.copyWith(
-          scheduledTime: newTime,
-        );
-        return true;
-      }
-      return false;
+      await _supabase
+          .from('consultations')
+          .update({'scheduled_time': newTime.toIso8601String()}).eq(
+              'id', consultationId);
+      return true;
     } catch (e) {
+      print('Error rescheduling consultation: $e');
       return false;
     }
   }
 
   /// Get recording URL
   Future<String?> getRecordingUrl(String consultationId) async {
-    await Future.delayed(Duration(milliseconds: 300));
     try {
-      final consultation =
-          _mockConsultations.firstWhere((c) => c.id == consultationId);
-      return consultation.recordingUrl;
+      final data = await _supabase
+          .from('consultations')
+          .select('recording_url')
+          .eq('id', consultationId)
+          .maybeSingle();
+
+      return data?['recording_url'];
     } catch (e) {
       return null;
     }
@@ -178,44 +165,38 @@ class ConsultationService {
 
   /// Download consultation recording
   Future<bool> downloadRecording(String consultationId) async {
-    try {
-      await Future.delayed(Duration(seconds: 1));
-      // Mock download
-      return true;
-    } catch (e) {
-      return false;
-    }
+    // Placeholder – actual download logic depends on storage setup
+    return true;
   }
 
   /// Share consultation recording
   Future<bool> shareRecording(
-    String consultationId,
-    List<String> recipients,
-  ) async {
-    try {
-      await Future.delayed(Duration(milliseconds: 500));
-      // Mock share
-      return true;
-    } catch (e) {
-      return false;
-    }
+      String consultationId, List<String> recipients) async {
+    // Placeholder – actual share logic depends on messaging setup
+    return true;
   }
 
   /// Generate meeting link
   Future<String?> generateMeetingLink(String consultationId) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return 'https://videocall.example.com/room/${consultationId}';
+    return 'https://videocall.example.com/room/$consultationId';
   }
 
   /// Get consultation by appointment
   Future<ConsultationModel?> getConsultationByAppointment(
-    String appointmentId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
+      String appointmentId) async {
     try {
-      return _mockConsultations
-          .firstWhere((c) => c.appointmentId == appointmentId);
+      final data = await _supabase
+          .from('consultations')
+          .select()
+          .eq('appointment_id', appointmentId)
+          .maybeSingle();
+
+      if (data != null) {
+        return ConsultationModel.fromJson(data);
+      }
+      return null;
     } catch (e) {
+      print('Error fetching consultation by appointment: $e');
       return null;
     }
   }

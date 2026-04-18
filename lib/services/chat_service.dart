@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/chat_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
@@ -9,92 +10,38 @@ class ChatService {
 
   ChatService._internal();
 
-  final List<ChatModel> _mockChats = [
-    ChatModel(
-      id: 'chat_1',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      lastMessage: 'Take the medicine as prescribed. See you soon!',
-      lastMessageTime: DateTime.now().subtract(Duration(hours: 2)),
-      unreadCount: 0,
-      isActive: true,
-    ),
-    ChatModel(
-      id: 'chat_2',
-      doctorId: 'doc_2',
-      doctorName: 'Dr. Joseph Cart',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=400',
-      lastMessage: 'Please schedule a follow-up appointment',
-      lastMessageTime: DateTime.now().subtract(Duration(days: 1)),
-      unreadCount: 1,
-      isActive: true,
-    ),
-  ];
+  final _supabase = Supabase.instance.client;
 
-  final List<MessageModel> _mockMessages = [
-    MessageModel(
-      id: 'msg_1',
-      chatId: 'chat_1',
-      senderId: 'user_123',
-      senderName: 'You',
-      senderAvatar:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      message: 'Hi Dr. Stella, I have a question about my symptoms',
-      isDoctor: false,
-      timestamp: DateTime.now().subtract(Duration(hours: 3)),
-      isRead: true,
-    ),
-    MessageModel(
-      id: 'msg_2',
-      chatId: 'chat_1',
-      senderId: 'doc_1',
-      senderName: 'Dr. Stella Kane',
-      senderAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      message: 'Hi! Please describe your symptoms in detail',
-      isDoctor: true,
-      timestamp: DateTime.now().subtract(Duration(hours: 3)),
-      isRead: true,
-    ),
-    MessageModel(
-      id: 'msg_3',
-      chatId: 'chat_1',
-      senderId: 'user_123',
-      senderName: 'You',
-      senderAvatar:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      message: 'I have been experiencing mild headaches for 3 days',
-      isDoctor: false,
-      timestamp: DateTime.now().subtract(Duration(hours: 2, minutes: 45)),
-      isRead: true,
-    ),
-    MessageModel(
-      id: 'msg_4',
-      chatId: 'chat_1',
-      senderId: 'doc_1',
-      senderName: 'Dr. Stella Kane',
-      senderAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      message: 'Take the medicine as prescribed. See you soon!',
-      isDoctor: true,
-      timestamp: DateTime.now().subtract(Duration(hours: 2)),
-      isRead: true,
-    ),
-  ];
-
-  /// Get all chats
+  /// Get all chats for the current user
   Future<List<ChatModel>> getChats(String userId) async {
-    await Future.delayed(Duration(milliseconds: 500));
-    return _mockChats;
+    try {
+      final data = await _supabase
+          .from('chat_sessions')
+          .select()
+          .eq('patient_id', userId)
+          .order('last_message_time', ascending: false);
+
+      return (data as List).map((json) => ChatModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching chats: $e');
+      return [];
+    }
   }
 
   /// Get messages for a specific chat
   Future<List<MessageModel>> getMessages(String chatId) async {
-    await Future.delayed(Duration(milliseconds: 500));
-    return _mockMessages.where((m) => m.chatId == chatId).toList();
+    try {
+      final data = await _supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', chatId)
+          .order('timestamp', ascending: true);
+
+      return (data as List).map((json) => MessageModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching messages: $e');
+      return [];
+    }
   }
 
   /// Send message
@@ -106,33 +53,28 @@ class ChatService {
     String message,
   ) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
+      final msgJson = {
+        'chat_id': chatId,
+        'sender_id': userId,
+        'sender_name': userName,
+        'sender_avatar': userAvatar,
+        'message': message,
+        'is_doctor': false,
+        'is_read': false,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
 
-      final newMessage = MessageModel(
-        id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-        chatId: chatId,
-        senderId: userId,
-        senderName: userName,
-        senderAvatar: userAvatar,
-        message: message,
-        isDoctor: false,
-        timestamp: DateTime.now(),
-        isRead: false,
-      );
+      await _supabase.from('messages').insert(msgJson);
 
-      _mockMessages.add(newMessage);
-
-      // Update last message in chat
-      final chatIndex = _mockChats.indexWhere((c) => c.id == chatId);
-      if (chatIndex != -1) {
-        _mockChats[chatIndex] = _mockChats[chatIndex].copyWith(
-          lastMessage: message,
-          lastMessageTime: DateTime.now(),
-        );
-      }
+      // Update last message in chat session
+      await _supabase.from('chat_sessions').update({
+        'last_message': message,
+        'last_message_time': DateTime.now().toIso8601String(),
+      }).eq('id', chatId);
 
       return true;
     } catch (e) {
+      print('Error sending message: $e');
       return false;
     }
   }
@@ -140,14 +82,19 @@ class ChatService {
   /// Mark messages as read
   Future<bool> markMessagesAsRead(String chatId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 200));
-      for (var msg in _mockMessages) {
-        if (msg.chatId == chatId && !msg.isRead) {
-          msg = msg.copyWith(isRead: true);
-        }
-      }
+      await _supabase
+          .from('messages')
+          .update({'is_read': true})
+          .eq('chat_id', chatId)
+          .eq('is_read', false);
+
+      await _supabase
+          .from('chat_sessions')
+          .update({'unread_count': 0}).eq('id', chatId);
+
       return true;
     } catch (e) {
+      print('Error marking messages as read: $e');
       return false;
     }
   }
@@ -159,37 +106,82 @@ class ChatService {
     String doctorAvatar,
   ) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return null;
 
-      final newChat = ChatModel(
-        id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
-        doctorId: doctorId,
-        doctorName: doctorName,
-        doctorAvatar: doctorAvatar,
-        lastMessage: 'Chat started',
-        lastMessageTime: DateTime.now(),
-        unreadCount: 0,
-        isActive: true,
-      );
+      // Check if chat already exists
+      final existing = await _supabase
+          .from('chat_sessions')
+          .select()
+          .eq('patient_id', userId)
+          .eq('doctor_id', doctorId)
+          .maybeSingle();
 
-      _mockChats.add(newChat);
-      return newChat;
+      if (existing != null) {
+        return ChatModel.fromJson(existing);
+      }
+
+      final chatJson = {
+        'doctor_id': doctorId,
+        'doctor_name': doctorName,
+        'doctor_avatar': doctorAvatar,
+        'patient_id': userId,
+        'last_message': 'Chat started',
+        'last_message_time': DateTime.now().toIso8601String(),
+        'unread_count': 0,
+        'is_active': true,
+      };
+
+      final data = await _supabase
+          .from('chat_sessions')
+          .insert(chatJson)
+          .select()
+          .single();
+
+      return ChatModel.fromJson(data);
     } catch (e) {
+      print('Error starting chat: $e');
       return null;
     }
   }
 
   /// Search chats
   Future<List<ChatModel>> searchChats(String query) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockChats
-        .where((chat) =>
-            chat.doctorName.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return [];
+
+      final data = await _supabase
+          .from('chat_sessions')
+          .select()
+          .eq('patient_id', userId)
+          .ilike('doctor_name', '%$query%');
+
+      return (data as List).map((json) => ChatModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error searching chats: $e');
+      return [];
+    }
   }
 
   /// Get unread count
-  int getUnreadCount() {
-    return _mockChats.fold<int>(0, (sum, chat) => sum + chat.unreadCount);
+  Future<int> getUnreadCount() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return 0;
+
+      final data = await _supabase
+          .from('chat_sessions')
+          .select('unread_count')
+          .eq('patient_id', userId);
+
+      int total = 0;
+      for (final row in data) {
+        total += (row['unread_count'] as int?) ?? 0;
+      }
+      return total;
+    } catch (e) {
+      return 0;
+    }
   }
 }

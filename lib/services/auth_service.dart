@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/user_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -9,24 +10,20 @@ class AuthService {
 
   AuthService._internal();
 
+  final _supabase = Supabase.instance.client;
+
   UserModel? _currentUser;
 
   UserModel? get currentUser => _currentUser;
 
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn => _supabase.auth.currentUser != null;
 
   bool get isDoctor => _currentUser?.isDoctor ?? false;
   bool get isPatient => _currentUser?.isPatient ?? false;
   bool get isDoctorApproved => _currentUser?.isDoctorApproved ?? false;
 
-  // Simulated doctor database for demo
-  final List<UserModel> _registeredDoctors = [];
-
-  List<UserModel> get pendingDoctors =>
-      _registeredDoctors.where((d) => d.isDoctorPending).toList();
-
-  List<UserModel> get approvedDoctors =>
-      _registeredDoctors.where((d) => d.isDoctorApproved).toList();
+  List<UserModel> get pendingDoctors => [];
+  List<UserModel> get approvedDoctors => [];
 
   String resolveUserId({
     Object? fallback,
@@ -35,6 +32,11 @@ class AuthService {
     final currentUserId = _normalizeUserId(_currentUser?.id);
     if (currentUserId != null) {
       return currentUserId;
+    }
+
+    final authUser = _supabase.auth.currentUser;
+    if (authUser != null) {
+      return authUser.id;
     }
 
     if (fallback is String) {
@@ -55,11 +57,45 @@ class AuthService {
     return defaultValue;
   }
 
+  /// Fetch user profile from Supabase 'profiles' table
+  Future<UserModel?> _fetchProfile(String userId) async {
+    try {
+      final data = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (data != null) {
+        return UserModel.fromJson(data);
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching profile: \$e');
+      return null;
+    }
+  }
+
+  /// Create or update user profile in Supabase
+  Future<void> _upsertProfile(UserModel user) async {
+    try {
+      await _supabase.from('profiles').upsert(user.toJson());
+    } catch (e) {
+      print('Error upserting profile: \$e');
+    }
+  }
+
+  /// Initialize current user from existing Supabase session
+  Future<void> initSession() async {
+    final authUser = _supabase.auth.currentUser;
+    if (authUser != null) {
+      _currentUser = await _fetchProfile(authUser.id);
+    }
+  }
+
   /// Login with email and password
   Future<bool> login(String email, String password) async {
     try {
-      await Future.delayed(Duration(seconds: 1));
-
       if (email.isEmpty || password.isEmpty) {
         throw 'Email and password cannot be empty';
       }
@@ -72,29 +108,36 @@ class AuthService {
         throw 'Password must be at least 3 characters';
       }
 
-      // Check if this is a registered doctor
-      final doctorMatch = _registeredDoctors.where((d) => d.email == email);
-      if (doctorMatch.isNotEmpty) {
-        _currentUser = doctorMatch.first;
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (response.user != null) {
+        _currentUser = await _fetchProfile(response.user!.id);
+
+        // If no profile exists yet, create a basic patient profile
+        if (_currentUser == null) {
+          _currentUser = UserModel(
+            id: response.user!.id,
+            email: email,
+            firstName: email.split('@')[0],
+            lastName: '',
+            phone: '',
+            createdAt: DateTime.now(),
+            role: UserRole.patient,
+          );
+          await _upsertProfile(_currentUser!);
+        }
+
         return true;
       }
 
-      // Default: create patient user
-      _currentUser = UserModel(
-        id: email.split('@')[0],
-        email: email,
-        firstName: email.split('@')[0],
-        lastName: 'User',
-        phone: '+233000000000',
-        profileImage: '',
-        bio: '',
-        createdAt: DateTime.now(),
-        role: UserRole.patient,
-      );
-
-      return true;
+      return false;
     } catch (e) {
-      print('Login error: $e');
+      if (e is AuthException) {
+        throw e.message;
+      }
       rethrow;
     }
   }
@@ -103,8 +146,6 @@ class AuthService {
   Future<bool> signup(String email, String firstName, String lastName,
       String phone, String password) async {
     try {
-      await Future.delayed(Duration(seconds: 1));
-
       if (email.isEmpty ||
           password.isEmpty ||
           firstName.isEmpty ||
@@ -117,25 +158,35 @@ class AuthService {
         throw 'Invalid email format';
       }
 
-      if (password.length < 3) {
-        throw 'Password must be at least 3 characters';
+      if (password.length < 6) {
+        throw 'Password must be at least 6 characters';
       }
 
-      _currentUser = UserModel(
-        id: email.split('@')[0],
+      final response = await _supabase.auth.signUp(
         email: email,
-        firstName: firstName,
-        lastName: lastName,
-        phone: phone,
-        profileImage: '',
-        bio: '',
-        createdAt: DateTime.now(),
-        role: UserRole.patient,
+        password: password,
       );
 
-      return true;
+      if (response.user != null) {
+        _currentUser = UserModel(
+          id: response.user!.id,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          phone: phone,
+          createdAt: DateTime.now(),
+          role: UserRole.patient,
+        );
+
+        await _upsertProfile(_currentUser!);
+        return true;
+      }
+
+      return false;
     } catch (e) {
-      print('Signup error: $e');
+      if (e is AuthException) {
+        throw e.message;
+      }
       rethrow;
     }
   }
@@ -154,8 +205,6 @@ class AuthService {
     String bio = '',
   }) async {
     try {
-      await Future.delayed(Duration(seconds: 1));
-
       if (email.isEmpty ||
           password.isEmpty ||
           firstName.isEmpty ||
@@ -170,96 +219,117 @@ class AuthService {
         throw 'Invalid email format';
       }
 
-      if (password.length < 3) {
-        throw 'Password must be at least 3 characters';
+      if (password.length < 6) {
+        throw 'Password must be at least 6 characters';
       }
 
       if (licenseDocumentPath.isEmpty) {
         throw 'Medical license document is required';
       }
 
-      final doctor = UserModel(
-        id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
+      final response = await _supabase.auth.signUp(
         email: email,
-        firstName: firstName,
-        lastName: lastName,
-        phone: phone,
-        profileImage: '',
-        bio: bio,
-        createdAt: DateTime.now(),
-        role: UserRole.doctor,
-        specialty: specialty,
-        experience: experience,
-        consultationFee: consultationFee,
-        licenseDocumentPath: licenseDocumentPath,
-        approvalStatus: DoctorApprovalStatus.pending,
-        isOnline: false,
+        password: password,
       );
 
-      _registeredDoctors.add(doctor);
-      _currentUser = doctor;
+      if (response.user != null) {
+        _currentUser = UserModel(
+          id: response.user!.id,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          phone: phone,
+          bio: bio,
+          createdAt: DateTime.now(),
+          role: UserRole.doctor,
+          specialty: specialty,
+          experience: experience,
+          consultationFee: consultationFee,
+          licenseDocumentPath: licenseDocumentPath,
+          approvalStatus: DoctorApprovalStatus.pending,
+          isOnline: false,
+        );
 
-      return true;
+        await _upsertProfile(_currentUser!);
+        return true;
+      }
+
+      return false;
     } catch (e) {
-      print('Doctor signup error: $e');
+      if (e is AuthException) {
+        throw e.message;
+      }
       rethrow;
     }
   }
 
   /// Admin approves doctor
-  void approveDoctor(String doctorId) {
-    final index = _registeredDoctors.indexWhere((d) => d.id == doctorId);
-    if (index != -1) {
-      _registeredDoctors[index] = _registeredDoctors[index].copyWith(
-        approvalStatus: DoctorApprovalStatus.approved,
-      );
+  Future<void> approveDoctor(String doctorId) async {
+    try {
+      await _supabase
+          .from('profiles')
+          .update({'approval_status': 'approved'}).eq('id', doctorId);
+
       if (_currentUser?.id == doctorId) {
-        _currentUser = _registeredDoctors[index];
+        _currentUser = _currentUser!.copyWith(
+          approvalStatus: DoctorApprovalStatus.approved,
+        );
       }
+    } catch (e) {
+      print('Error approving doctor: \$e');
     }
   }
 
   /// Admin rejects doctor
-  void rejectDoctor(String doctorId, String reason) {
-    final index = _registeredDoctors.indexWhere((d) => d.id == doctorId);
-    if (index != -1) {
-      _registeredDoctors[index] = _registeredDoctors[index].copyWith(
-        approvalStatus: DoctorApprovalStatus.rejected,
-        approvalNote: reason,
-      );
+  Future<void> rejectDoctor(String doctorId, String reason) async {
+    try {
+      await _supabase.from('profiles').update({
+        'approval_status': 'rejected',
+        'approval_note': reason,
+      }).eq('id', doctorId);
+
       if (_currentUser?.id == doctorId) {
-        _currentUser = _registeredDoctors[index];
+        _currentUser = _currentUser!.copyWith(
+          approvalStatus: DoctorApprovalStatus.rejected,
+          approvalNote: reason,
+        );
       }
+    } catch (e) {
+      print('Error rejecting doctor: \$e');
     }
   }
 
   /// Toggle doctor online status
-  void toggleDoctorOnline(bool isOnline) {
+  Future<void> toggleDoctorOnline(bool isOnline) async {
     if (_currentUser?.isDoctor ?? false) {
       _currentUser = _currentUser!.copyWith(isOnline: isOnline);
-      final index =
-          _registeredDoctors.indexWhere((d) => d.id == _currentUser!.id);
-      if (index != -1) {
-        _registeredDoctors[index] = _currentUser!;
+      try {
+        await _supabase
+            .from('profiles')
+            .update({'is_online': isOnline}).eq('id', _currentUser!.id);
+      } catch (e) {
+        print('Error toggling online status: \$e');
       }
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _supabase.auth.signOut();
     _currentUser = null;
   }
 
   Future<bool> resetPassword(String email) async {
     try {
-      await Future.delayed(Duration(seconds: 1));
-
       if (!_isValidEmail(email)) {
         throw 'Invalid email format';
       }
 
+      await _supabase.auth.resetPasswordForEmail(email);
       return true;
     } catch (e) {
-      print('Reset password error: $e');
+      if (e is AuthException) {
+        throw e.message;
+      }
       rethrow;
     }
   }

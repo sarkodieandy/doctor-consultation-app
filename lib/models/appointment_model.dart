@@ -63,16 +63,16 @@ class AppointmentModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'userId': userId,
-      'doctorId': doctorId,
-      'doctorName': doctorName,
-      'doctorImage': doctorImage,
+      'user_id': userId,
+      'doctor_id': doctorId,
+      'doctor_name': doctorName,
+      'doctor_image': doctorImage,
       'speciality': speciality,
-      'appointmentDate': appointmentDate.toIso8601String(),
-      'timeSlot': timeSlot,
-      'consultationFee': consultationFee,
+      'appointment_date': appointmentDate.toIso8601String(),
+      'time_slot': timeSlot,
+      'consultation_fee': consultationFee,
       'status': status,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
       'notes': notes,
       'rating': rating,
       'review': review,
@@ -81,21 +81,26 @@ class AppointmentModel {
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
     return AppointmentModel(
-      id: json['id'] ?? '',
-      userId: json['userId'] ?? '',
-      doctorId: json['doctorId'] ?? '',
-      doctorName: json['doctorName'] ?? '',
-      doctorImage: json['doctorImage'] ?? '',
+      id: (json['id'] ?? '').toString(),
+      userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
+      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
+      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
+      doctorImage: json['doctor_image'] ?? json['doctorImage'] ?? '',
       speciality: json['speciality'] ?? '',
-      appointmentDate: json['appointmentDate'] != null
-          ? DateTime.parse(json['appointmentDate'])
-          : DateTime.now(),
-      timeSlot: json['timeSlot'] ?? '',
-      consultationFee: (json['consultationFee'] ?? 0).toDouble(),
+      appointmentDate: json['appointment_date'] != null
+          ? DateTime.parse(json['appointment_date'])
+          : (json['appointmentDate'] != null
+              ? DateTime.parse(json['appointmentDate'])
+              : DateTime.now()),
+      timeSlot: json['time_slot'] ?? json['timeSlot'] ?? '',
+      consultationFee:
+          (json['consultation_fee'] ?? json['consultationFee'] ?? 0).toDouble(),
       status: json['status'] ?? 'pending',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : (json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'])
+              : DateTime.now()),
       notes: json['notes'],
       rating: json['rating'] != null ? (json['rating']).toDouble() : null,
       review: json['review'],

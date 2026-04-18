@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PrescriptionService {
   static final PrescriptionService _instance = PrescriptionService._internal();
@@ -9,86 +10,100 @@ class PrescriptionService {
 
   PrescriptionService._internal();
 
-  final List<PrescriptionModel> _mockPrescriptions = [
-    PrescriptionModel(
-      id: 'presc_1',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      appointmentId: 'apt_1',
-      prescribedDate: DateTime.now().subtract(Duration(days: 5)),
-      expiryDate: DateTime.now().add(Duration(days: 25)),
-      medicines: [
-        Medicine(
-          id: 'med_1',
-          name: 'Aspirin',
-          dosage: '500mg',
-          frequency: 'Twice daily',
-          duration: 7,
-          instructions: 'Take with food. Do not crush tablet.',
-          sideEffects: ['Nausea', 'Headache'],
-        ),
-        Medicine(
-          id: 'med_2',
-          name: 'Paracetamol',
-          dosage: '650mg',
-          frequency: 'Three times daily',
-          duration: 5,
-          instructions: 'Can be taken with or without food.',
-          sideEffects: ['Rare'],
-        ),
-      ],
-      notes: 'Take medications as per the schedule. Avoid alcohol.',
-      status: 'active',
-    ),
-    PrescriptionModel(
-      id: 'presc_2',
-      doctorId: 'doc_2',
-      doctorName: 'Dr. Joseph Cart',
-      appointmentId: 'apt_2',
-      prescribedDate: DateTime.now().subtract(Duration(days: 15)),
-      expiryDate: DateTime.now().subtract(Duration(days: 5)),
-      medicines: [
-        Medicine(
-          id: 'med_3',
-          name: 'Amoxicillin',
-          dosage: '250mg',
-          frequency: 'Three times daily',
-          duration: 7,
-          instructions: 'Complete the full course. Take with or without food.',
-          sideEffects: ['Allergic reactions', 'Diarrhea'],
-        ),
-      ],
-      notes: 'Antibiotic course. Complete it fully.',
-      status: 'completed',
-    ),
-  ];
+  final _supabase = Supabase.instance.client;
+
+  Future<PrescriptionModel> _loadWithMedicines(
+      Map<String, dynamic> json) async {
+    final prescriptionId = json['id'];
+    final medsData = await _supabase
+        .from('medicines')
+        .select()
+        .eq('prescription_id', prescriptionId);
+
+    final medicines =
+        (medsData as List).map((m) => Medicine.fromJson(m)).toList();
+    return PrescriptionModel.fromJson(json, medicines: medicines);
+  }
 
   /// Get all prescriptions
   Future<List<PrescriptionModel>> getPrescriptions(String userId) async {
-    await Future.delayed(Duration(milliseconds: 500));
-    return _mockPrescriptions;
+    try {
+      final data = await _supabase
+          .from('prescriptions')
+          .select()
+          .eq('patient_id', userId)
+          .order('prescribed_date', ascending: false);
+
+      final List<PrescriptionModel> results = [];
+      for (final json in data) {
+        results.add(await _loadWithMedicines(json));
+      }
+      return results;
+    } catch (e) {
+      print('Error fetching prescriptions: $e');
+      return [];
+    }
   }
 
   /// Get active prescriptions
   Future<List<PrescriptionModel>> getActivePrescriptions(String userId) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockPrescriptions.where((p) => p.isActive).toList();
+    try {
+      final data = await _supabase
+          .from('prescriptions')
+          .select()
+          .eq('patient_id', userId)
+          .eq('status', 'active')
+          .order('prescribed_date', ascending: false);
+
+      final List<PrescriptionModel> results = [];
+      for (final json in data) {
+        results.add(await _loadWithMedicines(json));
+      }
+      return results;
+    } catch (e) {
+      print('Error fetching active prescriptions: $e');
+      return [];
+    }
   }
 
   /// Get completed prescriptions
   Future<List<PrescriptionModel>> getCompletedPrescriptions(
       String userId) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockPrescriptions.where((p) => !p.isActive).toList();
+    try {
+      final data = await _supabase
+          .from('prescriptions')
+          .select()
+          .eq('patient_id', userId)
+          .eq('status', 'completed')
+          .order('prescribed_date', ascending: false);
+
+      final List<PrescriptionModel> results = [];
+      for (final json in data) {
+        results.add(await _loadWithMedicines(json));
+      }
+      return results;
+    } catch (e) {
+      print('Error fetching completed prescriptions: $e');
+      return [];
+    }
   }
 
   /// Get prescription details
   Future<PrescriptionModel?> getPrescriptionDetails(
       String prescriptionId) async {
-    await Future.delayed(Duration(milliseconds: 300));
     try {
-      return _mockPrescriptions.firstWhere((p) => p.id == prescriptionId);
+      final data = await _supabase
+          .from('prescriptions')
+          .select()
+          .eq('id', prescriptionId)
+          .maybeSingle();
+
+      if (data != null) {
+        return await _loadWithMedicines(data);
+      }
+      return null;
     } catch (e) {
+      print('Error fetching prescription details: $e');
       return null;
     }
   }
@@ -96,10 +111,29 @@ class PrescriptionService {
   /// Add prescription
   Future<bool> addPrescription(PrescriptionModel prescription) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      _mockPrescriptions.add(prescription);
+      final json = prescription.toJson();
+      json.remove('id');
+      final medicines = json.remove('medicines') as List?;
+
+      final inserted =
+          await _supabase.from('prescriptions').insert(json).select().single();
+
+      final prescriptionId = inserted['id'];
+
+      if (medicines != null && medicines.isNotEmpty) {
+        final medsToInsert = prescription.medicines.map((m) {
+          final mJson = m.toJson();
+          mJson.remove('id');
+          mJson['prescription_id'] = prescriptionId;
+          return mJson;
+        }).toList();
+
+        await _supabase.from('medicines').insert(medsToInsert);
+      }
+
       return true;
     } catch (e) {
+      print('Error adding prescription: $e');
       return false;
     }
   }
@@ -107,15 +141,17 @@ class PrescriptionService {
   /// Update prescription
   Future<bool> updatePrescription(PrescriptionModel prescription) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      final index =
-          _mockPrescriptions.indexWhere((p) => p.id == prescription.id);
-      if (index != -1) {
-        _mockPrescriptions[index] = prescription;
-        return true;
-      }
-      return false;
+      final json = prescription.toJson();
+      json.remove('id');
+      json.remove('medicines');
+
+      await _supabase
+          .from('prescriptions')
+          .update(json)
+          .eq('id', prescription.id);
+      return true;
     } catch (e) {
+      print('Error updating prescription: $e');
       return false;
     }
   }
@@ -123,48 +159,44 @@ class PrescriptionService {
   /// Delete prescription
   Future<bool> deletePrescription(String prescriptionId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      _mockPrescriptions.removeWhere((p) => p.id == prescriptionId);
+      // Medicines deleted by cascade
+      await _supabase.from('prescriptions').delete().eq('id', prescriptionId);
       return true;
     } catch (e) {
+      print('Error deleting prescription: $e');
       return false;
     }
   }
 
   /// Download prescription as PDF
   Future<bool> downloadPrescriptionPDF(String prescriptionId) async {
-    try {
-      await Future.delayed(Duration(seconds: 1));
-      // Mock download
-      return true;
-    } catch (e) {
-      return false;
-    }
+    // Placeholder – actual PDF generation depends on setup
+    return true;
   }
 
   /// Share prescription
   Future<bool> sharePrescription(
-    String prescriptionId,
-    List<String> recipients,
-  ) async {
-    try {
-      await Future.delayed(Duration(milliseconds: 500));
-      // Mock share
-      return true;
-    } catch (e) {
-      return false;
-    }
+      String prescriptionId, List<String> recipients) async {
+    // Placeholder – actual sharing depends on messaging setup
+    return true;
   }
 
   /// Get prescription by appointment
   Future<PrescriptionModel?> getPrescriptionByAppointment(
-    String appointmentId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
+      String appointmentId) async {
     try {
-      return _mockPrescriptions
-          .firstWhere((p) => p.appointmentId == appointmentId);
+      final data = await _supabase
+          .from('prescriptions')
+          .select()
+          .eq('appointment_id', appointmentId)
+          .maybeSingle();
+
+      if (data != null) {
+        return await _loadWithMedicines(data);
+      }
+      return null;
     } catch (e) {
+      print('Error fetching prescription by appointment: $e');
       return null;
     }
   }

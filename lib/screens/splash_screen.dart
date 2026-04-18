@@ -93,7 +93,8 @@ class _SplashScreenState extends State<SplashScreen>
         _scaleController.forward(from: 0.0).then((_) {
           if (mounted) {
             _doctorCarouselTimer?.cancel();
-            _doctorCarouselTimer = Timer(Duration(seconds: 2), _changeDoctorImage);
+            _doctorCarouselTimer =
+                Timer(Duration(seconds: 2), _changeDoctorImage);
           }
         });
       }
@@ -102,11 +103,17 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _navigateToNextScreen() {
     _navigationTimer?.cancel();
-    _navigationTimer = Timer(Duration(seconds: 4), () {
+    _navigationTimer = Timer(Duration(seconds: 4), () async {
       if (mounted) {
         final authService = AuthService();
         if (authService.isLoggedIn) {
-          Get.offNamed('/home');
+          await authService.initSession();
+          final user = authService.currentUser;
+          if (user != null && user.isDoctor) {
+            Get.offNamed('/doctor-home');
+          } else {
+            Get.offNamed('/home');
+          }
         } else {
           Get.offNamed('/login');
         }

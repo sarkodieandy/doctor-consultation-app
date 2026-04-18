@@ -1,5 +1,6 @@
 import 'package:doctor_consultation_app/models/notification_model.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -12,6 +13,8 @@ class NotificationService {
   NotificationService._internal() {
     _notificationsPlugin = FlutterLocalNotificationsPlugin();
   }
+
+  final _supabase = Supabase.instance.client;
 
   /// Initialize notifications
   Future<void> initialize() async {
@@ -32,15 +35,33 @@ class NotificationService {
     );
   }
 
+  /// Save notification to Supabase and show locally
+  Future<void> _saveAndShow(NotificationModel notification) async {
+    try {
+      final json = notification.toJson();
+      json.remove('id');
+      await _supabase.from('notifications').insert(json);
+    } catch (e) {
+      print('Error saving notification: $e');
+    }
+
+    await _showNotification(
+      id: notification.id.hashCode,
+      title: notification.title,
+      body: notification.message,
+    );
+  }
+
   /// Send appointment reminder notification
   Future<void> sendAppointmentReminder({
     required String appointmentId,
     required String doctorName,
     required DateTime appointmentTime,
+    String userId = '',
   }) async {
     final notification = NotificationModel(
       id: appointmentId,
-      userId: '',
+      userId: userId,
       title: 'Appointment Reminder',
       message: 'Your appointment with $doctorName is in 1 hour',
       type: 'reminder',
@@ -49,11 +70,7 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    await _showNotification(
-      id: appointmentId.hashCode,
-      title: notification.title,
-      body: notification.message,
-    );
+    await _saveAndShow(notification);
   }
 
   /// Send appointment confirmed notification
@@ -61,10 +78,11 @@ class NotificationService {
     required String appointmentId,
     required String doctorName,
     required DateTime appointmentTime,
+    String userId = '',
   }) async {
     final notification = NotificationModel(
       id: appointmentId,
-      userId: '',
+      userId: userId,
       title: 'Appointment Confirmed',
       message: 'Your appointment with $doctorName is confirmed',
       type: 'appointment',
@@ -73,11 +91,7 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    await _showNotification(
-      id: appointmentId.hashCode,
-      title: notification.title,
-      body: notification.message,
-    );
+    await _saveAndShow(notification);
   }
 
   /// Send payment success notification
@@ -85,33 +99,32 @@ class NotificationService {
     required String paymentId,
     required double amount,
     required String appointmentId,
+    String userId = '',
   }) async {
     final notification = NotificationModel(
       id: paymentId,
-      userId: '',
+      userId: userId,
       title: 'Payment Successful',
-      message: 'Payment of ₹$amount received. Your appointment is confirmed.',
+      message:
+          'Payment of GHS $amount received. Your appointment is confirmed.',
       type: 'payment',
       relatedId: appointmentId,
       isRead: false,
       createdAt: DateTime.now(),
     );
 
-    await _showNotification(
-      id: paymentId.hashCode,
-      title: notification.title,
-      body: notification.message,
-    );
+    await _saveAndShow(notification);
   }
 
   /// Send payment failed notification
   Future<void> sendPaymentFailed({
     required String paymentId,
     required String reason,
+    String userId = '',
   }) async {
     final notification = NotificationModel(
       id: paymentId,
-      userId: '',
+      userId: userId,
       title: 'Payment Failed',
       message: 'Payment failed: $reason. Please try again.',
       type: 'payment',
@@ -120,21 +133,18 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    await _showNotification(
-      id: paymentId.hashCode,
-      title: notification.title,
-      body: notification.message,
-    );
+    await _saveAndShow(notification);
   }
 
   /// Send review request notification
   Future<void> sendReviewRequest({
     required String appointmentId,
     required String doctorName,
+    String userId = '',
   }) async {
     final notification = NotificationModel(
       id: appointmentId,
-      userId: '',
+      userId: userId,
       title: 'Share Your Experience',
       message: 'How was your appointment with $doctorName? Leave a review.',
       type: 'review',
@@ -143,11 +153,7 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    await _showNotification(
-      id: appointmentId.hashCode,
-      title: notification.title,
-      body: notification.message,
-    );
+    await _saveAndShow(notification);
   }
 
   /// Show local notification
@@ -181,32 +187,18 @@ class NotificationService {
     );
   }
 
-  /// Get all notifications (mock)
+  /// Get all notifications
   Future<List<NotificationModel>> getNotifications(String userId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      return [
-        NotificationModel(
-          id: '1',
-          userId: userId,
-          title: 'Appointment Confirmed',
-          message: 'Your appointment with Dr. Stella is confirmed',
-          type: 'appointment',
-          relatedId: 'apt_1',
-          isRead: false,
-          createdAt: DateTime.now().subtract(Duration(hours: 2)),
-        ),
-        NotificationModel(
-          id: '2',
-          userId: userId,
-          title: 'Payment Successful',
-          message: 'Payment of ₹500 received successfully',
-          type: 'payment',
-          relatedId: 'pmt_1',
-          isRead: true,
-          createdAt: DateTime.now().subtract(Duration(hours: 3)),
-        ),
-      ];
+      final data = await _supabase
+          .from('notifications')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (data as List)
+          .map((json) => NotificationModel.fromJson(json))
+          .toList();
     } catch (e) {
       print('Error fetching notifications: $e');
       return [];
@@ -216,9 +208,43 @@ class NotificationService {
   /// Mark notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
+      await _supabase.from('notifications').update({
+        'is_read': true,
+        'read_at': DateTime.now().toIso8601String(),
+      }).eq('id', notificationId);
     } catch (e) {
       print('Error marking notification as read: $e');
+    }
+  }
+
+  /// Mark all notifications as read
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      await _supabase
+          .from('notifications')
+          .update({
+            'is_read': true,
+            'read_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .eq('is_read', false);
+    } catch (e) {
+      print('Error marking all notifications as read: $e');
+    }
+  }
+
+  /// Get unread count
+  Future<int> getUnreadCount(String userId) async {
+    try {
+      final data = await _supabase
+          .from('notifications')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_read', false);
+
+      return (data as List).length;
+    } catch (e) {
+      return 0;
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:doctor_consultation_app/components/category_card.dart';
 import 'package:doctor_consultation_app/components/search_bar.dart'
     as custom_search;
+import 'package:doctor_consultation_app/components/sidebar_drawer.dart';
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late AppointmentController _controller;
+  bool _isSidebarOpen = false;
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -26,133 +29,168 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    InkWell(
-                      onTap: () {
-                        Get.toNamed('/profile');
-                      },
-                      child: SvgPicture.asset('assets/icons/menu.svg'),
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _isSidebarOpen = true;
+                            });
+                          },
+                          child: SvgPicture.asset('assets/icons/menu.svg'),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            Get.toNamed('/appointments');
+                          },
+                          child: SvgPicture.asset('assets/icons/profile.svg'),
+                        ),
+                      ],
                     ),
-                    InkWell(
-                      onTap: () {
-                        Get.toNamed('/appointments');
-                      },
-                      child: SvgPicture.asset('assets/icons/profile.svg'),
+                  ),
+                  SizedBox(
+                    height: 50,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Text(
+                      'Find Your Desired\nDoctor',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 32,
+                        color: kTitleTextColor,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: 50,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: Text(
-                  'Find Your Desired\nDoctor',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 32,
-                    color: kTitleTextColor,
                   ),
-                ),
-              ),
-              SizedBox(
-                height: 30,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: custom_search.SearchBar(),
-              ),
-              SizedBox(
-                height: 20,
-              ),
-              // Quick Access Features
-              buildQuickAccessFeatures(),
-              SizedBox(
-                height: 20,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: Text(
-                  'Categories',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: kTitleTextColor,
-                    fontSize: 18,
+                  SizedBox(
+                    height: 30,
                   ),
-                ),
-              ),
-              SizedBox(
-                height: 20,
-              ),
-              buildCategoryList(),
-              SizedBox(
-                height: 20,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
-                child: Text(
-                  'Top Doctors',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: kTitleTextColor,
-                    fontSize: 18,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: custom_search.SearchBar(),
                   ),
-                ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  // Quick Access Features
+                  buildQuickAccessFeatures(),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Text(
+                      'Categories',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: kTitleTextColor,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  buildCategoryList(),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Text(
+                      'Top Doctors',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: kTitleTextColor,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  buildDoctorList(),
+                ],
               ),
-              SizedBox(
-                height: 20,
-              ),
-              buildDoctorList(),
-            ],
+            ),
           ),
-        ),
+          if (_isSidebarOpen)
+            SidebarDrawer(
+              onClose: () {
+                setState(() {
+                  _isSidebarOpen = false;
+                });
+              },
+            ),
+        ],
       ),
     );
   }
 
+  void _onCategoryTap(String category) {
+    setState(() {
+      if (_selectedCategory == category) {
+        _selectedCategory = null;
+        _controller.fetchDoctors();
+      } else {
+        _selectedCategory = category;
+        _controller.fetchDoctorsBySpecialty(category);
+      }
+    });
+  }
+
   buildCategoryList() {
+    final categories = [
+      {
+        'title': 'Dental\nSurgeon',
+        'icon': 'assets/icons/dental_surgeon.png',
+        'color': kBlueColor,
+        'specialty': 'Dental Surgeon'
+      },
+      {
+        'title': 'Heart\nSurgeon',
+        'icon': 'assets/icons/heart_surgeon.png',
+        'color': kYellowColor,
+        'specialty': 'Heart Surgeon'
+      },
+      {
+        'title': 'Eye\nSpecialist',
+        'icon': 'assets/icons/eye_specialist.png',
+        'color': kOrangeColor,
+        'specialty': 'Eye Specialist'
+      },
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: <Widget>[
-          SizedBox(
-            width: 30,
-          ),
-          CategoryCard(
-            'Dental\nSurgeon',
-            'assets/icons/dental_surgeon.png',
-            kBlueColor,
-          ),
-          SizedBox(
-            width: 10,
-          ),
-          CategoryCard(
-            'Heart\nSurgeon',
-            'assets/icons/heart_surgeon.png',
-            kYellowColor,
-          ),
-          SizedBox(
-            width: 10,
-          ),
-          CategoryCard(
-            'Eye\nSpecialist',
-            'assets/icons/eye_specialist.png',
-            kOrangeColor,
-          ),
-          SizedBox(
-            width: 30,
-          ),
+          SizedBox(width: 30),
+          ...categories.map((cat) {
+            final specialty = cat['specialty'] as String;
+            return Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: CategoryCard(
+                cat['title'] as String,
+                cat['icon'] as String,
+                cat['color'] as Color,
+                isSelected: _selectedCategory == specialty,
+                onTap: () => _onCategoryTap(specialty),
+              ),
+            );
+          }),
+          SizedBox(width: 20),
         ],
       ),
     );
@@ -345,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                '₹${doctor.consultationFee.toStringAsFixed(0)}',
+                                'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: kOrangeColor,

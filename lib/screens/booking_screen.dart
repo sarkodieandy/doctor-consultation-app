@@ -148,7 +148,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   border: Border.all(color: kBlueColor, width: 1.5),
                 ),
                 child: Text(
-                  '₹${widget.doctor.consultationFee.toStringAsFixed(0)}',
+                  'GHS ${widget.doctor.consultationFee.toStringAsFixed(0)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -286,7 +286,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         Text('Consultation Fee:',
                             style: TextStyle(fontSize: 14)),
                         Text(
-                          '₹${widget.doctor.consultationFee.toStringAsFixed(0)}',
+                          'GHS ${widget.doctor.consultationFee.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: kOrangeColor,

@@ -27,6 +27,7 @@ import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void ensureAppointmentController() {
   if (!Get.isRegistered<AppointmentController>()) {
@@ -36,6 +37,13 @@ void ensureAppointmentController() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://ijmblflyhhuoftesjsmi.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqbWJsZmx5aGh1b2Z0ZXNqc21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODcxNzQsImV4cCI6MjA4NzA2MzE3NH0.jVu4mpsB3n4-iVHBE0ihrztXigQ5M3HTGhrMAoI87oU',
+  );
+
   final notificationService = NotificationService();
   await notificationService.initialize();
   runApp(MyApp());

@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/review_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReviewService {
   static final ReviewService _instance = ReviewService._internal();
@@ -9,132 +10,114 @@ class ReviewService {
 
   ReviewService._internal();
 
-  final List<ReviewModel> _mockReviews = [
-    ReviewModel(
-      id: 'rev_1',
-      appointmentId: 'apt_1',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      patientName: 'John Doe',
-      patientAvatar:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      rating: 5,
-      title: 'Excellent Doctor',
-      reviewText:
-          'Dr. Stella is very professional and caring. She took time to explain everything.',
-      tags: ['communication', 'expertise', 'punctuality'],
-      createdAt: DateTime.now().subtract(Duration(days: 10)),
-      helpfulCount: 24,
-      isVerifiedAppointment: true,
-    ),
-    ReviewModel(
-      id: 'rev_2',
-      appointmentId: 'apt_2',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      patientName: 'Jane Smith',
-      patientAvatar:
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-      rating: 4,
-      title: 'Very Good',
-      reviewText: 'Professional and knowledgeable. Would recommend to others.',
-      tags: ['expertise', 'cleanliness'],
-      createdAt: DateTime.now().subtract(Duration(days: 15)),
-      helpfulCount: 18,
-      isVerifiedAppointment: true,
-    ),
-    ReviewModel(
-      id: 'rev_3',
-      appointmentId: 'apt_3',
-      doctorId: 'doc_2',
-      doctorName: 'Dr. Joseph Cart',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=400',
-      patientName: 'Mike Johnson',
-      patientAvatar:
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400',
-      rating: 5,
-      title: 'Best Dentist',
-      reviewText: 'Best dental care I have received. Highly recommended!',
-      tags: ['expertise', 'communication', 'cleanliness'],
-      createdAt: DateTime.now().subtract(Duration(days: 5)),
-      helpfulCount: 32,
-      isVerifiedAppointment: true,
-    ),
-  ];
+  final _supabase = Supabase.instance.client;
 
   /// Get all reviews
   Future<List<ReviewModel>> getAllReviews() async {
-    await Future.delayed(Duration(milliseconds: 500));
-    return _mockReviews;
+    try {
+      final data = await _supabase
+          .from('reviews')
+          .select()
+          .order('created_at', ascending: false);
+
+      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching reviews: $e');
+      return [];
+    }
   }
 
   /// Get reviews for a doctor
   Future<List<ReviewModel>> getDoctorReviews(String doctorId) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockReviews.where((r) => r.doctorId == doctorId).toList();
+    try {
+      final data = await _supabase
+          .from('reviews')
+          .select()
+          .eq('doctor_id', doctorId)
+          .order('created_at', ascending: false);
+
+      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching doctor reviews: $e');
+      return [];
+    }
   }
 
   /// Get doctor review summary
-  Future<DoctorReviewSummary> getDoctorReviewSummary(
-    String doctorId,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 500));
+  Future<DoctorReviewSummary> getDoctorReviewSummary(String doctorId) async {
+    try {
+      final reviews = await getDoctorReviews(doctorId);
 
-    final reviews = _mockReviews.where((r) => r.doctorId == doctorId).toList();
+      final totalRating = reviews.fold<double>(0, (sum, r) => sum + r.rating);
+      final averageRating =
+          reviews.isEmpty ? 0.0 : totalRating / reviews.length;
 
-    // Calculate average rating
-    final totalRating = reviews.fold<double>(0, (sum, r) => sum + r.rating);
-    final averageRating = reviews.isEmpty ? 0 : totalRating / reviews.length;
-
-    // Calculate rating distribution
-    final ratingDistribution = <int, int>{};
-    for (var r in reviews) {
-      final rating = r.rating.toInt();
-      ratingDistribution[rating] = (ratingDistribution[rating] ?? 0) + 1;
-    }
-
-    // Get top tags
-    final tagCounts = <String, int>{};
-    for (var r in reviews) {
-      for (var tag in r.tags) {
-        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      final ratingDistribution = <int, int>{};
+      for (var r in reviews) {
+        final rating = r.rating.toInt();
+        ratingDistribution[rating] = (ratingDistribution[rating] ?? 0) + 1;
       }
+
+      final tagCounts = <String, int>{};
+      for (var r in reviews) {
+        for (var tag in r.tags) {
+          tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+        }
+      }
+      final topTags = tagCounts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final topTagsList = topTags.take(3).map((e) => e.key).toList();
+
+      final doctor = reviews.isNotEmpty ? reviews.first.doctorName : 'Doctor';
+
+      return DoctorReviewSummary(
+        doctorId: doctorId,
+        doctorName: doctor,
+        averageRating: averageRating,
+        totalReviews: reviews.length,
+        ratingDistribution: ratingDistribution,
+        topTags: topTagsList,
+        recentReviews: reviews.take(5).toList(),
+      );
+    } catch (e) {
+      print('Error getting review summary: $e');
+      return DoctorReviewSummary(
+        doctorId: doctorId,
+        doctorName: 'Doctor',
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: {},
+        topTags: [],
+        recentReviews: [],
+      );
     }
-    final topTags = tagCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final topTagsList = topTags.take(3).map((e) => e.key).toList();
-
-    final doctor = reviews.isNotEmpty ? reviews.first.doctorName : 'Doctor';
-
-    return DoctorReviewSummary(
-      doctorId: doctorId,
-      doctorName: doctor,
-      averageRating: averageRating.toDouble(),
-      totalReviews: reviews.length,
-      ratingDistribution: ratingDistribution,
-      topTags: topTagsList,
-      recentReviews: reviews.take(5).toList(),
-    );
   }
 
   /// Get user reviews
   Future<List<ReviewModel>> getUserReviews(String userId) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockReviews; // In real app, filter by patientId
+    try {
+      final data = await _supabase
+          .from('reviews')
+          .select()
+          .eq('patient_id', userId)
+          .order('created_at', ascending: false);
+
+      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching user reviews: $e');
+      return [];
+    }
   }
 
   /// Add review
   Future<bool> addReview(ReviewModel review) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      _mockReviews.add(review);
+      final json = review.toJson();
+      json.remove('id');
+      await _supabase.from('reviews').insert(json);
       return true;
     } catch (e) {
+      print('Error adding review: $e');
       return false;
     }
   }
@@ -142,14 +125,12 @@ class ReviewService {
   /// Update review
   Future<bool> updateReview(ReviewModel review) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      final index = _mockReviews.indexWhere((r) => r.id == review.id);
-      if (index != -1) {
-        _mockReviews[index] = review;
-        return true;
-      }
-      return false;
+      final json = review.toJson();
+      json.remove('id');
+      await _supabase.from('reviews').update(json).eq('id', review.id);
+      return true;
     } catch (e) {
+      print('Error updating review: $e');
       return false;
     }
   }
@@ -157,10 +138,10 @@ class ReviewService {
   /// Delete review
   Future<bool> deleteReview(String reviewId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      _mockReviews.removeWhere((r) => r.id == reviewId);
+      await _supabase.from('reviews').delete().eq('id', reviewId);
       return true;
     } catch (e) {
+      print('Error deleting review: $e');
       return false;
     }
   }
@@ -168,29 +149,40 @@ class ReviewService {
   /// Mark review as helpful
   Future<bool> markHelpful(String reviewId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 300));
-      final index = _mockReviews.indexWhere((r) => r.id == reviewId);
-      if (index != -1) {
-        final review = _mockReviews[index];
-        _mockReviews[index] = review.copyWith(
-          helpfulCount: review.helpfulCount + 1,
-        );
-        return true;
-      }
-      return false;
+      final data = await _supabase
+          .from('reviews')
+          .select('helpful_count')
+          .eq('id', reviewId)
+          .single();
+
+      final currentCount = data['helpful_count'] ?? 0;
+
+      await _supabase
+          .from('reviews')
+          .update({'helpful_count': currentCount + 1}).eq('id', reviewId);
+
+      return true;
     } catch (e) {
+      print('Error marking helpful: $e');
       return false;
     }
   }
 
   /// Get reviews by rating
   Future<List<ReviewModel>> getReviewsByRating(
-    String doctorId,
-    int rating,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 300));
-    return _mockReviews
-        .where((r) => r.doctorId == doctorId && r.rating == rating)
-        .toList();
+      String doctorId, int rating) async {
+    try {
+      final data = await _supabase
+          .from('reviews')
+          .select()
+          .eq('doctor_id', doctorId)
+          .eq('rating', rating)
+          .order('created_at', ascending: false);
+
+      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching reviews by rating: $e');
+      return [];
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/models/payment_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PaymentService {
   static final PaymentService _instance = PaymentService._internal();
@@ -12,6 +13,8 @@ class PaymentService {
 
   PaymentService._internal();
 
+  final _supabase = Supabase.instance.client;
+
   /// Initialize payment callbacks (UI-only, Paystack integration later)
   void initializePayment({
     required Function(PaymentModel) onSuccess,
@@ -21,8 +24,7 @@ class PaymentService {
     _onFailure = onFailure;
   }
 
-  /// Simulate payment processing (UI-only for now)
-  /// Will be replaced with Paystack integration
+  /// Process payment (UI-only for now, stores in Supabase)
   Future<void> processPayment({
     required String appointmentId,
     required String doctorId,
@@ -32,33 +34,38 @@ class PaymentService {
     required String userName,
   }) async {
     try {
-      // Simulate payment processing delay
-      await Future.delayed(Duration(seconds: 2));
+      final paymentJson = {
+        'appointment_id': appointmentId,
+        'doctor_id': doctorId,
+        'user_id': userId,
+        'amount': amount,
+        'status': 'completed',
+        'payment_method': 'paystack',
+        'transaction_id': 'txn_${DateTime.now().millisecondsSinceEpoch}',
+        'created_at': DateTime.now().toIso8601String(),
+        'completed_at': DateTime.now().toIso8601String(),
+      };
 
-      // Simulate success for UI demo
-      final payment = PaymentModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        appointmentId: appointmentId,
-        doctorId: doctorId,
-        userId: userId,
-        amount: amount,
-        status: 'completed',
-        paymentMethod: 'paystack',
-        transactionId: 'txn_${DateTime.now().millisecondsSinceEpoch}',
-        createdAt: DateTime.now(),
-        completedAt: DateTime.now(),
-      );
+      final data = await _supabase
+          .from('payments')
+          .insert(paymentJson)
+          .select()
+          .single();
 
+      final payment = PaymentModel.fromJson(data);
       _onSuccess?.call(payment);
     } catch (e) {
       _onFailure?.call(e.toString());
     }
   }
 
-  /// Process refund (simulated)
+  /// Process refund
   Future<bool> refundPayment(String transactionId, double amount) async {
     try {
-      await Future.delayed(Duration(seconds: 2));
+      await _supabase
+          .from('payments')
+          .update({'status': 'refunded'}).eq('transaction_id', transactionId);
+
       return true;
     } catch (e) {
       print('Refund error: $e');
@@ -66,25 +73,16 @@ class PaymentService {
     }
   }
 
-  /// Get payment history (mock data)
+  /// Get payment history
   Future<List<PaymentModel>> getPaymentHistory(String userId) async {
     try {
-      await Future.delayed(Duration(milliseconds: 500));
-      return [
-        PaymentModel(
-          id: '1',
-          appointmentId: 'apt_1',
-          doctorId: 'doc_1',
-          userId: userId,
-          amount: 500.0,
-          status: 'completed',
-          paymentMethod: 'paystack',
-          transactionId: 'txn_123',
-          createdAt: DateTime.now().subtract(Duration(days: 5)),
-          completedAt: DateTime.now().subtract(Duration(days: 5)),
-          receiptId: 'rcpt_123',
-        ),
-      ];
+      final data = await _supabase
+          .from('payments')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (data as List).map((json) => PaymentModel.fromJson(json)).toList();
     } catch (e) {
       print('Error fetching payment history: $e');
       return [];

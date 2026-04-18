@@ -21,6 +21,35 @@ class MessageModel {
     required this.isRead,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'chat_id': chatId,
+      'sender_id': senderId,
+      'sender_name': senderName,
+      'sender_avatar': senderAvatar,
+      'message': message,
+      'is_doctor': isDoctor,
+      'timestamp': timestamp.toIso8601String(),
+      'is_read': isRead,
+    };
+  }
+
+  factory MessageModel.fromJson(Map<String, dynamic> json) {
+    return MessageModel(
+      id: (json['id'] ?? '').toString(),
+      chatId: (json['chat_id'] ?? json['chatId'] ?? '').toString(),
+      senderId: (json['sender_id'] ?? json['senderId'] ?? '').toString(),
+      senderName: json['sender_name'] ?? json['senderName'] ?? '',
+      senderAvatar: json['sender_avatar'] ?? json['senderAvatar'] ?? '',
+      message: json['message'] ?? '',
+      isDoctor: json['is_doctor'] ?? json['isDoctor'] ?? false,
+      timestamp:
+          DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+      isRead: json['is_read'] ?? json['isRead'] ?? false,
+    );
+  }
+
   MessageModel copyWith({
     String? id,
     String? chatId,
@@ -66,6 +95,34 @@ class ChatModel {
     required this.unreadCount,
     required this.isActive,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'doctor_id': doctorId,
+      'doctor_name': doctorName,
+      'doctor_avatar': doctorAvatar,
+      'last_message': lastMessage,
+      'last_message_time': lastMessageTime.toIso8601String(),
+      'unread_count': unreadCount,
+      'is_active': isActive,
+    };
+  }
+
+  factory ChatModel.fromJson(Map<String, dynamic> json) {
+    return ChatModel(
+      id: (json['id'] ?? '').toString(),
+      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
+      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
+      doctorAvatar: json['doctor_avatar'] ?? json['doctorAvatar'] ?? '',
+      lastMessage: json['last_message'] ?? json['lastMessage'] ?? '',
+      lastMessageTime: DateTime.parse(json['last_message_time'] ??
+          json['lastMessageTime'] ??
+          DateTime.now().toIso8601String()),
+      unreadCount: json['unread_count'] ?? json['unreadCount'] ?? 0,
+      isActive: json['is_active'] ?? json['isActive'] ?? true,
+    );
+  }
 
   ChatModel copyWith({
     String? id,

@@ -232,8 +232,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Container(
                             padding: EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
-                              color:
-                                  !_isDoctor ? kBlueColor : Colors.transparent,
+                              color: !_isDoctor
+                                  ? kOrangeColor
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: Row(
@@ -271,7 +272,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             padding: EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
                               color:
-                                  _isDoctor ? kBlueColor : Colors.transparent,
+                                  _isDoctor ? kOrangeColor : Colors.transparent,
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: Row(
@@ -610,7 +611,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   height: 55,
                   child: MaterialButton(
                     onPressed: _isLoading ? null : _signup,
-                    color: _isDoctor ? kBlueColor : kOrangeColor,
+                    color: kOrangeColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),

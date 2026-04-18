@@ -53,20 +53,20 @@ class UserModel {
     return {
       'id': id,
       'email': email,
-      'firstName': firstName,
-      'lastName': lastName,
+      'first_name': firstName,
+      'last_name': lastName,
       'phone': phone,
-      'profileImage': profileImage,
+      'profile_image': profileImage,
       'bio': bio,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
       'role': role.name,
       'specialty': specialty,
       'experience': experience,
-      'consultationFee': consultationFee,
-      'licenseDocumentPath': licenseDocumentPath,
-      'approvalStatus': approvalStatus?.name,
-      'approvalNote': approvalNote,
-      'isOnline': isOnline,
+      'consultation_fee': consultationFee,
+      'license_document_path': licenseDocumentPath,
+      'approval_status': approvalStatus?.name,
+      'approval_note': approvalNote,
+      'is_online': isOnline,
     };
   }
 
@@ -74,30 +74,36 @@ class UserModel {
     return UserModel(
       id: json['id'] ?? '',
       email: json['email'] ?? '',
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
+      firstName: json['first_name'] ?? json['firstName'] ?? '',
+      lastName: json['last_name'] ?? json['lastName'] ?? '',
       phone: json['phone'] ?? '',
-      profileImage: json['profileImage'] ?? '',
+      profileImage: json['profile_image'] ?? json['profileImage'] ?? '',
       bio: json['bio'] ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : (json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'])
+              : DateTime.now()),
       role: UserRole.values.firstWhere(
         (e) => e.name == json['role'],
         orElse: () => UserRole.patient,
       ),
       specialty: json['specialty'],
       experience: json['experience'],
-      consultationFee: json['consultationFee']?.toDouble(),
-      licenseDocumentPath: json['licenseDocumentPath'],
-      approvalStatus: json['approvalStatus'] != null
+      consultationFee:
+          (json['consultation_fee'] ?? json['consultationFee'])?.toDouble(),
+      licenseDocumentPath:
+          json['license_document_path'] ?? json['licenseDocumentPath'],
+      approvalStatus: (json['approval_status'] ?? json['approvalStatus']) !=
+              null
           ? DoctorApprovalStatus.values.firstWhere(
-              (e) => e.name == json['approvalStatus'],
+              (e) =>
+                  e.name == (json['approval_status'] ?? json['approvalStatus']),
               orElse: () => DoctorApprovalStatus.pending,
             )
           : null,
-      approvalNote: json['approvalNote'],
-      isOnline: json['isOnline'] ?? false,
+      approvalNote: json['approval_note'] ?? json['approvalNote'],
+      isOnline: json['is_online'] ?? json['isOnline'] ?? false,
     );
   }
 

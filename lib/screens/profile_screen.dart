@@ -417,8 +417,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text('Cancel', style: TextStyle(color: kTitleTextColor)),
           ),
           TextButton(
-            onPressed: () {
-              _authService.logout();
+            onPressed: () async {
+              await _authService.logout();
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,

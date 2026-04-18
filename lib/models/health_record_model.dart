@@ -1,5 +1,6 @@
 class HealthRecordModel {
   final String id;
+  final String userId;
   final String type; // vital, lab, document, allergy
   final String title;
   final String value;
@@ -12,6 +13,7 @@ class HealthRecordModel {
 
   HealthRecordModel({
     required this.id,
+    this.userId = '',
     required this.type,
     required this.title,
     required this.value,
@@ -22,6 +24,40 @@ class HealthRecordModel {
     this.documentUrl,
     this.notes,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'type': type,
+      'title': title,
+      'value': value,
+      'unit': unit,
+      'normal_range': normalRange,
+      'status': status,
+      'record_date': recordDate.toIso8601String(),
+      'document_url': documentUrl,
+      'notes': notes,
+    };
+  }
+
+  factory HealthRecordModel.fromJson(Map<String, dynamic> json) {
+    return HealthRecordModel(
+      id: (json['id'] ?? '').toString(),
+      userId: (json['user_id'] ?? '').toString(),
+      type: json['type'] ?? 'vital',
+      title: json['title'] ?? '',
+      value: json['value'] ?? '',
+      unit: json['unit'] ?? '',
+      normalRange: json['normal_range'] ?? json['normalRange'],
+      status: json['status'],
+      recordDate: DateTime.parse(json['record_date'] ??
+          json['recordDate'] ??
+          DateTime.now().toIso8601String()),
+      documentUrl: json['document_url'] ?? json['documentUrl'],
+      notes: json['notes'],
+    );
+  }
 
   bool get isNormal => status == 'normal' || status == null;
   bool get isAbnormal => status == 'high' || status == 'low';
