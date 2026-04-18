@@ -10,6 +10,7 @@ class AdminDashboard {
       dashboard: 'Admin Dashboard',
       users: 'User Management',
       doctors: 'Doctor Management',
+      verification: 'Document Verification',
       appointments: 'Appointment Management',
       payments: 'Payment History',
       reviews: 'Doctor Reviews',
@@ -97,6 +98,16 @@ class AdminDashboard {
         const { tab } = e.currentTarget.dataset;
         if (tab) {
           this.switchTab(tab);
+        }
+      });
+    });
+
+    // Verification sub-tabs
+    document.querySelectorAll('.verification-tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const { verificationTab } = e.currentTarget.dataset;
+        if (verificationTab) {
+          this.switchVerificationTab(verificationTab);
         }
       });
     });
@@ -189,6 +200,9 @@ class AdminDashboard {
         break;
       case 'doctors':
         this.loadDoctors();
+        break;
+      case 'verification':
+        this.loadVerification();
         break;
       case 'appointments':
         this.loadAppointments();
@@ -574,7 +588,153 @@ class AdminDashboard {
     this.adminUser = null;
     this.showLogin();
   }
+
+  // ========== DOCUMENT VERIFICATION ==========
+  async loadVerification() {
+    try {
+      const { data: verifications, error } = await supabase.from('doctor_verifications').select('*, profiles:doctor_id(*)').order('verified_at', { ascending: false });
+      if (error) throw error;
+
+      const pending = (verifications || []).filter(v => v.overall_status === 'manual_review');
+      const approved = (verifications || []).filter(v => v.overall_status === 'approved');
+      const rejected = (verifications || []).filter(v => v.overall_status === 'rejected');
+
+      // Update stats
+      document.getElementById('stat-total-verifications').textContent = verifications?.length || 0;
+      document.getElementById('stat-auto-approved').textContent = (verifications || []).filter(v => v.overall_status === 'approved' && v.verification_method === 'automated_ocr').length || 0;
+      document.getElementById('stat-manual-review').textContent = pending.length || 0;
+      document.getElementById('stat-rejected').textContent = rejected.length || 0;
+
+      // Load pending tab by default
+      this.switchVerificationTab('pending', pending, approved, rejected);
+    } catch (err) {
+      document.getElementById('verification-pending').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Error: ' + err.message + '</div></div>';
+    }
+  }
+
+  switchVerificationTab(tabName, pending = null, approved = null, rejected = null) {
+    // Update active button
+    document.querySelectorAll('.verification-tab-btn').forEach(btn => {
+      btn.style.color = btn.dataset.verificationTab === tabName ? 'var(--primary-color)' : 'var(--gray-500)';
+      btn.style.borderBottom = btn.dataset.verificationTab === tabName ? '2px solid var(--primary-color)' : 'none';
+    });
+
+    // Show/hide sections
+    document.querySelectorAll('.verification-section').forEach(section => {
+      section.style.display = 'none';
+    });
+    document.getElementById(`verification-${tabName}`).style.display = 'block';
+
+    // Fetch data if not provided
+    if (!pending) {
+      this.loadVerification();
+      return;
+    }
+
+    // Render content based on tab
+    let content = '';
+    let dataArray = [];
+
+    if (tabName === 'pending') {
+      dataArray = pending;
+      content = pending.length ? this.createVerificationCardsHTML(pending) : '<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No Pending Reviews</div><p>All doctor documents have been reviewed!</p></div>';
+    } else if (tabName === 'approved') {
+      dataArray = approved;
+      content = approved.length ? this.createVerificationCardsHTML(approved, false) : '<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No Approved Doctors</div></div>';
+    } else if (tabName === 'rejected') {
+      dataArray = rejected;
+      content = rejected.length ? this.createVerificationCardsHTML(rejected, false) : '<div class="empty-state"><div class="empty-state-icon">❌</div><div class="empty-state-title">No Rejected Doctors</div></div>';
+    }
+
+    document.getElementById(`verification-${tabName}`).innerHTML = content;
+  }
+
+  createVerificationCardsHTML(verifications, isActionable = true) {
+    return verifications.map(v => `
+      <div style="background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+          <div>
+            <h4 style="margin: 0; color: var(--dark-color); font-size: 16px;">${v.profiles?.first_name || ''} ${v.profiles?.last_name || ''}</h4>
+            <p style="margin: 4px 0; color: var(--gray-500); font-size: 14px;">${v.profiles?.email || 'N/A'}</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="background: ${v.overall_status === 'manual_review' ? '#fff3cd' : (v.overall_status === 'approved' ? '#d4edda' : '#f8d7da')}; color: ${v.overall_status === 'manual_review' ? '#856404' : (v.overall_status === 'approved' ? '#155724' : '#721c24')}; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;">
+              ${v.overall_status === 'manual_review' ? '⏳ Pending Review' : (v.overall_status === 'approved' ? '✅ Approved' : '❌ Rejected')}
+            </div>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div style="background: var(--gray-50); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">License Verification</div>
+            <div style="font-weight: 500; color: ${v.license_verified ? '#28a745' : '#dc3545'};">${v.license_verified ? '✅ Verified' : '❌ Not Verified'}</div>
+            ${v.license_number ? `<div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">License: ${v.license_number}</div>` : ''}
+          </div>
+          <div style="background: var(--gray-50); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Ghana Card Verification</div>
+            <div style="font-weight: 500; color: ${v.ghana_card_verified ? '#28a745' : '#dc3545'};">${v.ghana_card_verified ? '✅ Verified' : '❌ Not Verified'}</div>
+            ${v.ghana_card_number ? `<div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">Card: ${v.ghana_card_number}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="background: var(--gray-50); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 14px; font-weight: 500;">Confidence Score</span>
+            <span style="font-size: 16px; font-weight: 600; color: ${v.confidence_score > 0.85 ? '#28a745' : (v.confidence_score > 0.75 ? '#ff9800' : '#dc3545')};">${(v.confidence_score * 100).toFixed(0)}%</span>
+          </div>
+          <div style="background: #e9ecef; border-radius: 4px; height: 8px; overflow: hidden;">
+            <div style="background: ${v.confidence_score > 0.85 ? '#28a745' : (v.confidence_score > 0.75 ? '#ff9800' : '#dc3545')}; height: 100%; width: ${v.confidence_score * 100}%;"></div>
+          </div>
+        </div>
+
+        ${v.verification_notes ? `<div style="background: #f0f0f0; padding: 12px; border-radius: 8px; border-left: 3px solid #007bff; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--gray-600);"><strong>Notes:</strong> ${v.verification_notes}</div>
+        </div>` : ''}
+
+        ${isActionable ? `<div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" style="flex: 1;" onclick="window.adminDashboard.approveDocumentVerification('${v.doctor_id}', this)">✅ Approve</button>
+          <button class="btn btn-outline" style="flex: 1; color: #dc3545; border-color: #dc3545;" onclick="window.adminDashboard.rejectDocumentVerification('${v.doctor_id}', this)">❌ Reject</button>
+        </div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  async approveDocumentVerification(doctorId, button) {
+    button.disabled = true;
+    button.textContent = '⏳ Processing...';
+    try {
+      const { error } = await supabase.from('profiles').update({
+        approval_status: 'approved',
+        approval_note: 'Approved by admin after verification review',
+      }).eq('id', doctorId);
+      if (error) throw error;
+      button.textContent = '✅ Approved';
+      this.loadVerification();
+    } catch (err) {
+      button.disabled = false;
+      button.textContent = '✅ Approve';
+      alert('Error: ' + err.message);
+    }
+  }
+
+  async rejectDocumentVerification(doctorId, button) {
+    button.disabled = true;
+    button.textContent = '⏳ Processing...';
+    try {
+      const { error } = await supabase.from('profiles').update({
+        approval_status: 'rejected',
+        approval_note: 'Rejected by admin after verification review',
+      }).eq('id', doctorId);
+      if (error) throw error;
+      button.textContent = '❌ Rejected';
+      this.loadVerification();
+    } catch (err) {
+      button.disabled = false;
+      button.textContent = '❌ Reject';
+      alert('Error: ' + err.message);
+    }
+  }
 }
 
-const dashboard = new AdminDashboard();
-window.dashboard = dashboard;
+const adminDashboard = new AdminDashboard();
+window.adminDashboard = adminDashboard;

@@ -548,6 +548,38 @@ textarea:focus {
   margin-bottom: 8px;
 }
 
+
+/* DOCUMENT VERIFICATION */
+.stat-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--gray-600);
+  font-weight: 500;
+}
+
+.verification-section {
+  display: none;
+}
+
+.verification-section.active {
+  display: block;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .sidebar {
