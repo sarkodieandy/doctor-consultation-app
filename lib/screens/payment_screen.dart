@@ -34,6 +34,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   double doctorEarnings = 0;
   bool isLoading = true;
   bool isProcessing = false;
+  String paymentMethod = 'mobile_money';
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     symptomDescription = args['description'] ?? '';
     careNotes = args['notes'] ?? '';
     selectedSymptoms = (args['symptoms'] as List<dynamic>? ?? []);
+    paymentMethod = args['payment_method'] ?? 'mobile_money';
     _loadPreview();
   }
 
@@ -209,6 +211,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         _buildDetailRow('Mode', consultationMode),
                         _buildDetailRow('Language', preferredLanguage),
                         _buildDetailRow('Reason', visitReason),
+                        _buildDetailRow(
+                            'Payment via', _paymentMethodLabel(paymentMethod)),
                       ],
                     ),
                   ),
@@ -323,6 +327,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
     );
+  }
+
+  String _paymentMethodLabel(String id) {
+    switch (id) {
+      case 'mobile_money':
+        return 'Mobile Money';
+      case 'card':
+        return 'Debit / Credit Card';
+      case 'bank_transfer':
+        return 'Bank Transfer';
+      case 'ussd':
+        return 'USSD';
+      default:
+        return id;
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {

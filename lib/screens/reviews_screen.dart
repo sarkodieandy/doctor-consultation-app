@@ -413,7 +413,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         backgroundColor: kWhiteColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
+          icon: Icon(Icons.arrow_back_ios_new, color: kTitleTextColor),
           onPressed: () => Get.back(),
         ),
         title: Text(

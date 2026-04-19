@@ -73,7 +73,7 @@ class _BookingScreenState extends State<BookingScreen> {
         backgroundColor: kBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
+          icon: Icon(Icons.arrow_back_ios_new, color: kTitleTextColor),
           onPressed: () => Get.back(),
         ),
         title: Text(
@@ -221,11 +221,10 @@ class _BookingScreenState extends State<BookingScreen> {
                   onTap: () => setState(() => selectedTime = time),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isSelected ? kOrangeColor : kWhiteColor,
+                      color: isSelected ? kBlueColor : kWhiteColor,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color:
-                            isSelected ? kOrangeColor : kSearchBackgroundColor,
+                        color: isSelected ? kBlueColor : kSearchBackgroundColor,
                       ),
                     ),
                     child: Center(
@@ -275,8 +274,8 @@ class _BookingScreenState extends State<BookingScreen> {
                 return FilterChip(
                   label: Text(symptom),
                   selected: isSelected,
-                  selectedColor: kOrangeColor.withOpacity(0.18),
-                  checkmarkColor: kOrangeColor,
+                  selectedColor: kBlueColor.withOpacity(0.18),
+                  checkmarkColor: kBlueColor,
                   onSelected: (_) {
                     setState(() {
                       if (isSelected) {
@@ -400,7 +399,7 @@ class _BookingScreenState extends State<BookingScreen> {
               width: double.infinity,
               child: MaterialButton(
                 onPressed: _proceedToPayment,
-                color: kOrangeColor,
+                color: kBlueColor,
                 height: 55,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -468,10 +467,10 @@ class _BookingScreenState extends State<BookingScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? kOrangeColor : kWhiteColor,
+              color: isSelected ? kBlueColor : kWhiteColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? kOrangeColor : kSearchBackgroundColor,
+                color: isSelected ? kBlueColor : kSearchBackgroundColor,
               ),
             ),
             child: Text(
@@ -503,7 +502,7 @@ class _BookingScreenState extends State<BookingScreen> {
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isHighlighted ? kOrangeColor : kTitleTextColor,
+                color: isHighlighted ? kBlueColor : kTitleTextColor,
                 fontSize: isHighlighted ? 16 : 14,
               ),
             ),
@@ -539,7 +538,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _proceedToPayment() async {
-    final result = await Get.toNamed('/payment', arguments: {
+    final result = await Get.toNamed('/paystack-checkout', arguments: {
       'doctor': widget.doctor,
       'date': selectedDate,
       'time': selectedTime,

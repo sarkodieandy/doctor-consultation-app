@@ -686,22 +686,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final categories = [
       {
         'title': 'Dental\nSurgeon',
-        'icon':
-            'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=900&q=80',
+        'icon': 'assets/images/dental.jpeg',
         'color': kBlueColor,
         'specialty': 'Dental Surgeon'
       },
       {
         'title': 'Heart\nSurgeon',
-        'icon':
-            'https://images.unsplash.com/photo-1628348068343-c6a848d2b6dd?auto=format&fit=crop&w=900&q=80',
+        'icon': 'assets/images/heart surg.jpeg',
         'color': kYellowColor,
         'specialty': 'Heart Surgeon'
       },
       {
         'title': 'Eye\nSpecialist',
-        'icon':
-            'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=900&q=80',
+        'icon': 'assets/images/eye.jpeg',
         'color': kOrangeColor,
         'specialty': 'Eye Specialist'
       },

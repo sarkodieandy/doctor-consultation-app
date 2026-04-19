@@ -16,7 +16,7 @@ class CareTimelineScreen extends StatelessWidget {
         backgroundColor: kBlueColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kWhiteColor),
+          icon: Icon(Icons.arrow_back_ios_new, color: kWhiteColor),
           onPressed: () => Get.back(),
         ),
         title: Text(

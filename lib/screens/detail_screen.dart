@@ -19,7 +19,7 @@ class DetailScreen extends StatelessWidget {
         backgroundColor: kBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
+          icon: Icon(Icons.arrow_back_ios_new, color: kTitleTextColor),
           onPressed: () => Get.back(),
         ),
         title: Text(
@@ -125,7 +125,7 @@ class DetailScreen extends StatelessWidget {
                           Icons.payments_outlined,
                           'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
                           'Fee',
-                          kOrangeColor,
+                          kBlueColor,
                         ),
                       ),
                     ],
@@ -193,7 +193,7 @@ class DetailScreen extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: kOrangeColor.withOpacity(0.12),
+                              backgroundColor: kBlueColor.withOpacity(0.12),
                               child: Icon(
                                 mode == 'Video'
                                     ? Icons.videocam_outlined
@@ -201,7 +201,7 @@ class DetailScreen extends StatelessWidget {
                                         ? Icons.call_outlined
                                         : Icons.chat_bubble_outline,
                                 size: 16,
-                                color: kOrangeColor,
+                                color: kBlueColor,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -226,7 +226,7 @@ class DetailScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => Get.toNamed('/booking', arguments: doctor),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kOrangeColor,
+                  backgroundColor: kBlueColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),

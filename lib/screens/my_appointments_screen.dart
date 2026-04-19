@@ -40,7 +40,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
         centerTitle: true,
         leading: InkWell(
           onTap: () => Get.back(),
-          child: Icon(Icons.arrow_back, color: kWhiteColor),
+          child: Icon(Icons.arrow_back_ios_new, color: kWhiteColor),
         ),
       ),
       body: Obx(

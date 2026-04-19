@@ -48,7 +48,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
   void _initializeCall() {
     final rawArgs = Get.arguments;
     final Map<String, dynamic> args = rawArgs is Map
-        ? Map<String, dynamic>.from(rawArgs as Map)
+        ? Map<String, dynamic>.from(rawArgs)
         : <String, dynamic>{};
 
     channelId = args['channelId'] ?? 'consultation_room';
@@ -335,7 +335,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
                     backgroundColor: Colors.white.withOpacity(0.2),
                     child: IconButton(
                       onPressed: _endCall,
-                      icon: Icon(Icons.arrow_back, color: Colors.white),
+                      icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
                       iconSize: 20,
                     ),
                   ),

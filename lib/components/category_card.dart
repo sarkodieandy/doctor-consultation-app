@@ -117,7 +117,12 @@ class CategoryCard extends StatelessWidget {
       width: double.infinity,
       height: 104,
       color: _bgColor.withOpacity(0.12),
-      child: Image.asset(_imageUrl),
+      child: Image.asset(
+        _imageUrl,
+        width: double.infinity,
+        height: 104,
+        fit: BoxFit.cover,
+      ),
     );
   }
 

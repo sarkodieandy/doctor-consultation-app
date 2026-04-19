@@ -110,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         leading: InkWell(
           onTap: () => Get.back(),
-          child: Icon(Icons.arrow_back, color: kTitleTextColor),
+          child: Icon(Icons.arrow_back_ios_new, color: kTitleTextColor),
         ),
         actions: [
           if (!_isEditing)

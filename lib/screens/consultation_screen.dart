@@ -1,6 +1,5 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/consultation_controller.dart';
-import 'package:doctor_consultation_app/data/patient_ui_content.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -39,10 +38,11 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
           ),
           centerTitle: true,
           bottom: TabBar(
-            labelColor: kOrangeColor,
+            labelColor: kBlueColor,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: kOrangeColor,
-            tabs: [
+            indicatorColor: kBlueColor,
+            indicatorWeight: 3,
+            tabs: const [
               Tab(text: 'Upcoming'),
               Tab(text: 'Completed'),
             ],
@@ -62,37 +62,26 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     return Obx(() {
       if (controller.isLoading.value) {
         return Center(
-          child: CircularProgressIndicator(color: kOrangeColor),
+          child: CircularProgressIndicator(color: kBlueColor),
         );
       }
 
       if (controller.upcomingConsultations.isEmpty) {
         return _buildEmptyState(
-          icon: Icons.videocam_off,
+          icon: Icons.videocam_off_outlined,
           title: 'No upcoming consultations',
-          subtitle:
-              'Booked visits that become consultations will appear here with join details and preparation steps.',
+          subtitle: 'Booked visits will appear here once scheduled.',
         );
       }
 
       return ListView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         children: [
-          _buildOverviewCard(
-            upcomingCount: controller.upcomingConsultations.length,
-            completedCount: controller.completedConsultations.length,
+          _buildStatsBar(),
+          const SizedBox(height: 16),
+          ...controller.upcomingConsultations.map(
+            (c) => _buildConsultationCard(c, isUpcoming: true),
           ),
-          SizedBox(height: 16),
-          _buildSupportCard(
-            title: 'Before you join',
-            items: patientConsultationPrepItems,
-            icon: Icons.check_circle_outline,
-            color: kBlueColor,
-          ),
-          SizedBox(height: 16),
-          ...controller.upcomingConsultations.map((consultation) {
-            return _buildConsultationCard(consultation, true);
-          }).toList(),
         ],
       );
     });
@@ -102,7 +91,7 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     return Obx(() {
       if (controller.isLoading.value) {
         return Center(
-          child: CircularProgressIndicator(color: kOrangeColor),
+          child: CircularProgressIndicator(color: kBlueColor),
         );
       }
 
@@ -111,69 +100,107 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
           icon: Icons.assignment_turned_in_outlined,
           title: 'No completed consultations',
           subtitle:
-              'After a consultation ends, its summary and follow-up information will appear here.',
+              'Past consultation summaries and follow-ups will appear here.',
         );
       }
 
       return ListView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         children: [
-          _buildSupportCard(
-            title: 'After your visit',
-            items: const [
-              'Review your prescription and care summary.',
-              'Send a follow-up message if dosage or timing is unclear.',
-              'Leave a review to track care quality.',
-            ],
-            icon: Icons.assignment_outlined,
-            color: Colors.green,
+          ...controller.completedConsultations.map(
+            (c) => _buildConsultationCard(c, isUpcoming: false),
           ),
-          SizedBox(height: 16),
-          ...controller.completedConsultations.map((consultation) {
-            return _buildConsultationCard(consultation, false);
-          }).toList(),
         ],
       );
     });
   }
 
-  Widget _buildConsultationCard(dynamic consultation, bool isUpcoming) {
-    final typeColor = _typeColor(consultation.consultationType);
+  // ── Stats bar (upcoming tab only) ─────────────────────────────────────────
+  Widget _buildStatsBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: kBlueColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _stat('${controller.upcomingConsultations.length}', 'Upcoming'),
+          _statDivider(),
+          _stat('${controller.completedConsultations.length}', 'Completed'),
+          _statDivider(),
+          _stat('${controller.consultations.length}', 'Total'),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 3),
+          Text(label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statDivider() => Container(
+        width: 1,
+        height: 32,
+        color: Colors.white30,
+      );
+
+  // ── Consultation card ──────────────────────────────────────────────────────
+  Widget _buildConsultationCard(dynamic consultation,
+      {required bool isUpcoming}) {
+    final typeIcon = consultation.consultationType == 'audio'
+        ? Icons.call_outlined
+        : consultation.consultationType == 'text'
+            ? Icons.chat_bubble_outline
+            : Icons.videocam_outlined;
 
     return GestureDetector(
-      onTap: () {
-        Get.toNamed('/consultation-detail', arguments: consultation);
-      },
+      onTap: () => Get.toNamed('/consultation-detail', arguments: consultation),
       child: Container(
-        margin: EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: kWhiteColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 5,
-            )
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Column(
           children: [
+            // ── Header strip ─────────────────────────────────
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUpcoming
-                    ? kBlueColor.withOpacity(0.1)
-                    : Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                    ? const Color(0xffEAF1FF)
+                    : Colors.green.withOpacity(0.08),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 25,
+                    radius: 24,
                     backgroundImage: _avatarProvider(consultation.doctorAvatar),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,181 +213,122 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                             color: kTitleTextColor,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: typeColor.withOpacity(0.16),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                consultation.consultationType == 'video'
-                                    ? Icons.videocam
-                                    : consultation.consultationType == 'audio'
-                                        ? Icons.call
-                                        : Icons.chat_bubble_outline,
-                                size: 12,
-                                color: typeColor,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(typeIcon,
+                                size: 13,
+                                color: isUpcoming
+                                    ? kBlueColor
+                                    : Colors.green[700]),
+                            const SizedBox(width: 4),
+                            Text(
+                              consultation.consultationType
+                                  .replaceAll('_', ' ')
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    isUpcoming ? kBlueColor : Colors.green[700],
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                consultation.consultationType.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: typeColor,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: (isUpcoming ? kOrangeColor : Colors.green)
-                          .withOpacity(0.18),
+                      color: isUpcoming
+                          ? kBlueColor.withOpacity(0.12)
+                          : Colors.green.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       isUpcoming ? 'Upcoming' : 'Completed',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isUpcoming ? kOrangeColor : Colors.green,
                         fontWeight: FontWeight.bold,
+                        color: isUpcoming ? kBlueColor : Colors.green[700],
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // ── Body ─────────────────────────────────────────
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Date & Time',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            DateFormat('MMM dd, yyyy hh:mm a')
-                                .format(consultation.scheduledTime),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      _metaChip(
+                        Icons.calendar_today_outlined,
+                        DateFormat('MMM dd, yyyy')
+                            .format(consultation.scheduledTime),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Duration',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            '${consultation.duration.inMinutes} min',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      _metaChip(
+                        Icons.access_time_outlined,
+                        DateFormat('hh:mm a')
+                            .format(consultation.scheduledTime),
+                      ),
+                      const SizedBox(width: 8),
+                      _metaChip(
+                        Icons.timer_outlined,
+                        '${consultation.duration.inMinutes} min',
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: kBackgroundColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isUpcoming
-                          ? 'Join on time, keep your records nearby, and use chat for anything the doctor should know beforehand.'
-                          : (consultation.summary?.isNotEmpty ?? false)
-                              ? consultation.summary!
-                              : 'Consultation completed in local preview mode. Follow-up guidance will appear here.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: kTitleTextColor.withOpacity(0.68),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                  // ── Buttons ────────────────────────────────
                   if (isUpcoming)
                     Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              Get.toNamed('/consultation-detail',
-                                  arguments: consultation);
-                            },
-                            child: Text('Details'),
+                          child: _outlineBtn(
+                            'Details',
+                            Icons.info_outline,
+                            () => Get.toNamed('/consultation-detail',
+                                arguments: consultation),
                           ),
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: MaterialButton(
-                            onPressed: () {
-                              Get.toNamed('/video-consultation',
-                                  arguments: consultation);
-                            },
-                            color: kOrangeColor,
-                            height: 42,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Join Now',
-                              style: TextStyle(
-                                color: kWhiteColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                          child: _solidBtn(
+                            'Join Now',
+                            Icons.videocam_rounded,
+                            () => Get.toNamed('/video-consultation',
+                                arguments: consultation),
                           ),
                         ),
                       ],
                     )
                   else
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Get.toNamed('/consultation-detail',
-                              arguments: consultation);
-                        },
-                        child: Text('View Summary'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _outlineBtn(
+                            'Summary',
+                            Icons.description_outlined,
+                            () => Get.toNamed('/consultation-detail',
+                                arguments: consultation),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _solidBtn(
+                            'Review',
+                            Icons.star_outline_rounded,
+                            () => Get.toNamed('/reviews'),
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -371,86 +339,63 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     );
   }
 
-  Widget _buildOverviewCard({
-    required int upcomingCount,
-    required int completedCount,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kWhiteColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: _buildOverviewStat('$upcomingCount', 'Upcoming')),
-          Expanded(child: _buildOverviewStat('$completedCount', 'Completed')),
-          Expanded(child: _buildOverviewStat('3', 'Prep Items')),
-        ],
+  Widget _metaChip(IconData icon, String label) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        decoration: BoxDecoration(
+          color: kBackgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 14, color: kBlueColor),
+            const SizedBox(height: 3),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: kTitleTextColor.withOpacity(0.7),
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildOverviewStat(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: kBlueColor,
-          ),
+  Widget _solidBtn(String label, IconData icon, VoidCallback onPressed) {
+    return SizedBox(
+      height: 42,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 15),
+        label: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kBlueColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: kTitleTextColor.withOpacity(0.6),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildSupportCard({
-    required String title,
-    required List<String> items,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kWhiteColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: kTitleTextColor,
-            ),
-          ),
-          SizedBox(height: 10),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(icon, size: 16, color: color),
-                  SizedBox(width: 8),
-                  Expanded(child: Text(item)),
-                ],
-              ),
-            ),
-          ),
-        ],
+  Widget _outlineBtn(String label, IconData icon, VoidCallback onPressed) {
+    return SizedBox(
+      height: 42,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 15),
+        label: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kBlueColor,
+          side: BorderSide(color: kBlueColor),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       ),
     );
   }
@@ -462,29 +407,32 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
   }) {
     return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 60, color: Colors.grey[300]),
-            SizedBox(height: 20),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: kTitleTextColor,
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Color(0xffEAF1FF),
+                shape: BoxShape.circle,
               ),
+              child: Icon(icon, size: 38, color: kBlueColor),
             ),
-            SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                height: 1.45,
-                color: kTitleTextColor.withOpacity(0.6),
-              ),
-            ),
+            const SizedBox(height: 20),
+            Text(title,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: kTitleTextColor)),
+            const SizedBox(height: 8),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    height: 1.5,
+                    fontSize: 13,
+                    color: kTitleTextColor.withOpacity(0.55))),
           ],
         ),
       ),
@@ -495,21 +443,8 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     if (avatar.trim().isEmpty) {
       return const AssetImage(DoctorModel.fallbackImagePath);
     }
-    if (avatar.startsWith('assets/')) {
-      return AssetImage(avatar);
-    }
+    if (avatar.startsWith('assets/')) return AssetImage(avatar);
     return NetworkImage(avatar);
-  }
-
-  Color _typeColor(String consultationType) {
-    switch (consultationType) {
-      case 'audio':
-        return Colors.green;
-      case 'text':
-        return Colors.teal;
-      default:
-        return Colors.blue;
-    }
   }
 }
 
@@ -527,6 +462,10 @@ class ConsultationDetailScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: kWhiteColor,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, color: kTitleTextColor),
+          onPressed: () => Get.back(),
+        ),
         title: Text(
           'Consultation Details',
           style: TextStyle(
@@ -538,66 +477,115 @@ class ConsultationDetailScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Doctor card ──────────────────────────────────
             Container(
-              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: kBlueColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: _avatarProvider(consultation.doctorAvatar),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          consultation.doctorName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('EEE, MMM dd · hh:mm a')
+                              .format(consultation.scheduledTime),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isUpcoming
+                                ? Colors.greenAccent.withOpacity(0.25)
+                                : Colors.white24,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            consultation.status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isUpcoming
+                                  ? Colors.greenAccent
+                                  : Colors.white70,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Info tiles ───────────────────────────────────
+            Container(
               decoration: BoxDecoration(
                 color: kWhiteColor,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage:
-                            _avatarProvider(consultation.doctorAvatar),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              consultation.doctorName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: kTitleTextColor,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              DateFormat('MMM dd, yyyy hh:mm a')
-                                  .format(consultation.scheduledTime),
-                              style: TextStyle(
-                                color: kTitleTextColor.withOpacity(0.65),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  _infoTile(
+                    Icons.videocam_outlined,
+                    'Type',
+                    consultation.consultationType
+                        .replaceAll('_', ' ')
+                        .toUpperCase(),
                   ),
-                  SizedBox(height: 16),
-                  _detailRow(
-                      'Type', consultation.consultationType.toUpperCase()),
-                  _detailRow(
-                      'Duration', '${consultation.duration.inMinutes} minutes'),
-                  _detailRow('Status', consultation.status.toUpperCase()),
-                  if (consultation.roomId != null)
-                    _detailRow('Room', consultation.roomId!),
+                  _divider(),
+                  _infoTile(
+                    Icons.timer_outlined,
+                    'Duration',
+                    '${consultation.duration.inMinutes} minutes',
+                  ),
+                  if (consultation.roomId != null) ...[
+                    _divider(),
+                    _infoTile(
+                      Icons.meeting_room_outlined,
+                      'Room',
+                      consultation.roomId!,
+                    ),
+                  ],
                 ],
               ),
             ),
-            SizedBox(height: 16),
+
+            const SizedBox(height: 16),
+
+            // ── Notes / Summary ──────────────────────────────
             Container(
-              padding: EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: kWhiteColor,
                 borderRadius: BorderRadius.circular(16),
@@ -606,138 +594,139 @@ class ConsultationDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isUpcoming ? 'Preparation Notes' : 'Consultation Summary',
+                    isUpcoming ? 'Before you join' : 'Consultation Summary',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: kTitleTextColor,
+                      fontSize: 14,
+                      color: kBlueColor,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
                     isUpcoming
-                        ? 'Keep your medications, lab reports, and a short symptom summary ready before you join. Use chat if you need to update the doctor beforehand.'
+                        ? 'Have your medications, lab reports and a short symptom list ready. Use chat to send anything the doctor should know beforehand.'
                         : (consultation.summary?.isNotEmpty ?? false)
                             ? consultation.summary!
-                            : 'No summary has been recorded yet in local preview mode.',
+                            : 'No summary recorded yet.',
                     style: TextStyle(
-                      height: 1.5,
-                      color: kTitleTextColor.withOpacity(0.68),
+                      height: 1.55,
+                      fontSize: 13,
+                      color: kTitleTextColor.withOpacity(0.7),
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: kWhiteColor,
-                borderRadius: BorderRadius.circular(16),
+
+            const SizedBox(height: 24),
+
+            // ── Action buttons ───────────────────────────────
+            if (isUpcoming) ...[
+              _blueButton(
+                label: 'Join Session',
+                icon: Icons.videocam_rounded,
+                onPressed: () =>
+                    Get.toNamed('/video-consultation', arguments: consultation),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Follow-up Actions',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: kTitleTextColor,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  _actionLine('Open messages to share updates or files.'),
-                  _actionLine('Review prescriptions after the visit.'),
-                  _actionLine('Use reviews to record your experience.'),
-                ],
+              const SizedBox(height: 10),
+              _outlineButton(
+                label: 'Open Chat',
+                icon: Icons.chat_bubble_outline,
+                onPressed: () => Get.toNamed('/chat'),
               ),
-            ),
-            SizedBox(height: 20),
-            if (isUpcoming)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.toNamed('/chat'),
-                      child: Text('Open Chat'),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Get.toNamed('/video-consultation',
-                          arguments: consultation),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kOrangeColor,
-                      ),
-                      child: Text(
-                        'Join Session',
-                        style: TextStyle(color: kWhiteColor),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          controller.downloadRecording(consultation.id),
-                      child: Text('Download'),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Get.toNamed('/reviews'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kBlueColor,
-                      ),
-                      child: Text(
-                        'Leave Review',
-                        style: TextStyle(color: kWhiteColor),
-                      ),
-                    ),
-                  ),
-                ],
+            ] else ...[
+              _blueButton(
+                label: 'Leave a Review',
+                icon: Icons.star_outline_rounded,
+                onPressed: () => Get.toNamed('/reviews'),
               ),
+              const SizedBox(height: 10),
+              _outlineButton(
+                label: 'Download Recording',
+                icon: Icons.download_outlined,
+                onPressed: () => controller.downloadRecording(consultation.id),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _detailRow(String label, String value) {
+  Widget _infoTile(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[600])),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(fontWeight: FontWeight.bold),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xffEAF1FF),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(icon, size: 18, color: kBlueColor),
           ),
+          const SizedBox(width: 14),
+          Text(label,
+              style: TextStyle(
+                  color: kTitleTextColor.withOpacity(0.55), fontSize: 13)),
+          const Spacer(),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: kTitleTextColor)),
         ],
       ),
     );
   }
 
-  Widget _actionLine(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle_outline, size: 16, color: kBlueColor),
-          SizedBox(width: 8),
-          Expanded(child: Text(text)),
-        ],
+  Widget _divider() => const Divider(height: 1, indent: 16, endIndent: 16);
+
+  Widget _blueButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kBlueColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  Widget _outlineButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kBlueColor,
+          side: BorderSide(color: kBlueColor),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
     );
   }
@@ -753,13 +742,14 @@ class ConsultationDetailScreen extends StatelessWidget {
   }
 }
 
-class VideoConsultationScreen extends StatefulWidget {
+class LegacyVideoConsultationScreen extends StatefulWidget {
   @override
-  State<VideoConsultationScreen> createState() =>
-      _VideoConsultationScreenState();
+  State<LegacyVideoConsultationScreen> createState() =>
+      _LegacyVideoConsultationScreenState();
 }
 
-class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
+class _LegacyVideoConsultationScreenState
+    extends State<LegacyVideoConsultationScreen> {
   late ConsultationController controller;
   bool isCameraOn = true;
   bool isMicOn = true;

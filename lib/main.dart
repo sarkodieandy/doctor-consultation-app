@@ -10,6 +10,7 @@ import 'package:doctor_consultation_app/screens/booking_screen.dart';
 import 'package:doctor_consultation_app/screens/care_timeline_screen.dart';
 import 'package:doctor_consultation_app/screens/chat_screen.dart';
 import 'package:doctor_consultation_app/screens/consultation_screen.dart';
+import 'package:doctor_consultation_app/screens/video_consultation_screen_new.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_dashboard_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_earnings_screen.dart';
@@ -23,6 +24,7 @@ import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/notifications_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
+import 'package:doctor_consultation_app/screens/paystack_checkout_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
 import 'package:doctor_consultation_app/screens/reviews_screen.dart';
@@ -57,6 +59,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         textTheme:
             GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
+        appBarTheme: const AppBarTheme(
+          iconTheme: IconThemeData(size: 24),
+        ),
       ),
       initialRoute: '/splash',
       getPages: [
@@ -87,6 +92,11 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/payment',
           page: () => PaymentScreen(),
+          binding: BindingsBuilder(ensureAppointmentController),
+        ),
+        GetPage(
+          name: '/paystack-checkout',
+          page: () => PaystackCheckoutScreen(),
           binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
@@ -170,7 +180,8 @@ class MyApp extends StatelessWidget {
         ),
         GetPage(
           name: '/video-consultation',
-          page: () => VideoConsultationScreen(),
+          page: () =>
+              VideoConsultationScreen(), // uses video_consultation_screen_new.dart
           binding: BindingsBuilder(() {
             if (!Get.isRegistered<ConsultationController>()) {
               Get.lazyPut<ConsultationController>(

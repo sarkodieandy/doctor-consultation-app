@@ -110,7 +110,7 @@ class DoctorCard extends StatelessWidget {
                             _buildBadge(
                               label:
                                   'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
-                              color: kOrangeColor,
+                              color: kBlueColor,
                             ),
                           ],
                         ),
