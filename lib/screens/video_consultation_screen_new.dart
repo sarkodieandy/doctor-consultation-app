@@ -36,7 +36,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
   bool isConnecting = true;
 
   // Timer
-  late Timer callTimer;
+  Timer? callTimer;
   int callDurationSeconds = 0;
 
   @override
@@ -46,13 +46,18 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
   }
 
   void _initializeCall() {
-    final args = Get.arguments as Map<String, dynamic>;
+    final rawArgs = Get.arguments;
+    final Map<String, dynamic> args = rawArgs is Map
+        ? Map<String, dynamic>.from(rawArgs as Map)
+        : <String, dynamic>{};
+
     channelId = args['channelId'] ?? 'consultation_room';
     userId = args['userId'] ?? '';
     appointmentId = args['appointmentId'] ?? '';
     doctorName = args['doctorName'] ?? 'Doctor';
     doctorAvatar = args['doctorAvatar'] ?? '';
     patientName = args['patientName'] ?? 'You';
+    isCameraOn = args['isVideoCall'] ?? true;
 
     print('📞 Initializing video call...');
     print('Channel: $channelId, User: $userId, Doctor: $doctorName');
@@ -70,6 +75,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
   }
 
   void _startCallTimer() {
+    callTimer?.cancel();
     callTimer = Timer.periodic(Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
@@ -93,7 +99,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
 
   Future<void> _endCall() async {
     // Stop timer
-    callTimer.cancel();
+    callTimer?.cancel();
 
     // Show end call dialog
     Get.dialog(
@@ -169,7 +175,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
 
   @override
   void dispose() {
-    callTimer.cancel();
+    callTimer?.cancel();
     super.dispose();
   }
 

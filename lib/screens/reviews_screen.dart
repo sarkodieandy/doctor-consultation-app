@@ -1,12 +1,28 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/review_controller.dart';
+import 'package:doctor_consultation_app/data/patient_ui_content.dart';
 import 'package:doctor_consultation_app/models/review_model.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-class ReviewsScreen extends StatelessWidget {
-  final controller = Get.find<ReviewController>();
+class ReviewsScreen extends StatefulWidget {
+  @override
+  State<ReviewsScreen> createState() => _ReviewsScreenState();
+}
+
+class _ReviewsScreenState extends State<ReviewsScreen> {
+  late ReviewController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<ReviewController>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchAllReviews();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,12 +65,69 @@ class ReviewsScreen extends StatelessWidget {
           return ListView(
             padding: EdgeInsets.all(16),
             children: [
+              _buildReviewSummary(controller),
+              SizedBox(height: 16),
+              _buildLeaveReviewCard(),
+              SizedBox(height: 16),
               ...controller.allReviews.map((review) {
                 return _buildReviewCard(review);
               }).toList(),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLeaveReviewCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff3B6FEC), Color(0xff2E5ED2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child:
+                const Icon(Icons.star_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Feedback Matters',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Help improve care quality. Rate your recent visits and share your experience.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -85,7 +158,7 @@ class ReviewsScreen extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundImage: NetworkImage(review.patientAvatar),
+                      backgroundImage: _avatarProvider(review.patientAvatar),
                     ),
                     SizedBox(width: 12),
                     Expanded(
@@ -214,11 +287,24 @@ class ReviewsScreen extends StatelessWidget {
                     Icon(Icons.thumb_up_outlined,
                         size: 16, color: Colors.grey[600]),
                     SizedBox(width: 6),
-                    Text(
-                      '${review.helpfulCount} found this helpful',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    Expanded(
+                      child: Text(
+                        '${review.helpfulCount} found this helpful',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => controller.markHelpful(review.id),
+                      child: Text(
+                        'Helpful',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: kBlueColor,
+                        ),
                       ),
                     ),
                   ],
@@ -230,6 +316,72 @@ class ReviewsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildReviewSummary(ReviewController controller) {
+    final totalReviews = controller.allReviews.length;
+    final averageRating = totalReviews == 0
+        ? 0.0
+        : controller.allReviews
+                .fold<double>(0, (sum, review) => sum + review.rating) /
+            totalReviews;
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildSummaryStat(
+              averageRating.toStringAsFixed(1),
+              'Average',
+            ),
+          ),
+          Expanded(
+            child: _buildSummaryStat('$totalReviews', 'Reviews'),
+          ),
+          Expanded(
+            child: _buildSummaryStat(
+              '${controller.allReviews.where((review) => review.isVerifiedAppointment).length}',
+              'Verified',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryStat(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: kBlueColor,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: kTitleTextColor.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  ImageProvider<Object> _avatarProvider(String avatar) {
+    if (avatar.startsWith('assets/')) {
+      return AssetImage(avatar);
+    }
+    return NetworkImage(avatar);
+  }
 }
 
 class WriteReviewScreen extends StatefulWidget {
@@ -239,17 +391,13 @@ class WriteReviewScreen extends StatefulWidget {
 
 class _WriteReviewScreenState extends State<WriteReviewScreen> {
   final controller = Get.find<ReviewController>();
+  final authService = AuthService();
   late double _rating;
   final titleController = TextEditingController();
   final reviewController = TextEditingController();
   final List<String> _selectedTags = [];
 
-  final List<String> availableTags = [
-    'communication',
-    'expertise',
-    'cleanliness',
-    'punctuality',
-  ];
+  final List<String> availableTags = patientReviewTags;
 
   @override
   void initState() {
@@ -283,6 +431,23 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (Get.arguments != null)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: kWhiteColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Reviewing ${Get.arguments.doctorName} after your ${Get.arguments.speciality} consultation.',
+                  style: TextStyle(
+                    color: kTitleTextColor.withOpacity(0.7),
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            if (Get.arguments != null) SizedBox(height: 16),
             // Rating
             Container(
               padding: EdgeInsets.all(16),
@@ -467,7 +632,10 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
     );
   }
 
-  void _submitReview() {
+  Future<void> _submitReview() async {
+    final appointment = Get.arguments;
+    final user = authService.currentUser;
+
     if (_rating == 0) {
       Get.snackbar('Error', 'Please select a rating');
       return;
@@ -483,27 +651,37 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       return;
     }
 
-    final review = ReviewModel(
-      id: 'rev_${DateTime.now().millisecondsSinceEpoch}',
-      appointmentId: 'apt_123',
-      doctorId: 'doc_1',
-      doctorName: 'Dr. Stella Kane',
-      doctorAvatar:
-          'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=400',
-      patientName: 'You',
-      patientAvatar:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      rating: _rating,
-      title: titleController.text,
-      reviewText: reviewController.text,
-      tags: _selectedTags,
-      createdAt: DateTime.now(),
-      helpfulCount: 0,
-      isVerifiedAppointment: true,
+    if (appointment == null || user == null) {
+      Get.snackbar('Error', 'Review context is missing');
+      return;
+    }
+
+    final success = await controller.addReview(
+      ReviewModel(
+        id: '',
+        appointmentId: appointment.id,
+        doctorId: appointment.doctorId,
+        doctorName: appointment.doctorName,
+        doctorAvatar: appointment.doctorImage,
+        patientId: user.id,
+        patientName: user.fullName,
+        patientAvatar: user.profileImage.isEmpty
+            ? 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'
+            : user.profileImage,
+        rating: _rating,
+        title: titleController.text.trim(),
+        reviewText: reviewController.text.trim(),
+        tags: List<String>.from(_selectedTags),
+        createdAt: DateTime.now(),
+        helpfulCount: 0,
+        isVerifiedAppointment: true,
+      ),
     );
 
-    controller.addReview(review);
-    Get.back();
+    if (success) {
+      await controller.fetchAllReviews();
+      Get.offNamed('/reviews');
+    }
   }
 
   @override

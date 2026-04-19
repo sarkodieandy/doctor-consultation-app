@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doctor_consultation_app/models/chat_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/chat_service.dart';
@@ -13,8 +15,20 @@ class ChatController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = Rxn<String>();
   final unreadCount = 0.obs;
+  final isCurrentUserTyping = false.obs;
+  final isPeerTyping = false.obs;
 
   String? _userId;
+  Timer? _typingDebounceTimer;
+  Timer? _peerTypingPollTimer;
+
+  String? get currentUserId => _userId;
+  String get currentUserName =>
+      _authService.currentUser?.fullName.trim().isNotEmpty == true
+          ? _authService.currentUser!.fullName
+          : 'You';
+  bool get isDoctorUser => _authService.currentUser?.isDoctor ?? false;
+  String get peerRoleLabel => isDoctorUser ? 'Patient' : 'Doctor';
 
   @override
   void onInit() {
@@ -47,6 +61,8 @@ class ChatController extends GetxController {
       final result = await _chatService.getMessages(chat.id);
       messages.assignAll(result);
       await _chatService.markMessagesAsRead(chat.id);
+      await _refreshPeerTypingStatus();
+      _startPeerTypingPolling();
     } catch (e) {
       errorMessage(e.toString());
     } finally {
@@ -54,10 +70,68 @@ class ChatController extends GetxController {
     }
   }
 
+  Future<void> onMessageInputChanged(String input) async {
+    final activeChat = selectedChat.value;
+    final userId = _userId;
+    if (activeChat == null || userId == null) {
+      return;
+    }
+
+    final shouldShowTyping = input.trim().isNotEmpty;
+    if (isCurrentUserTyping.value != shouldShowTyping) {
+      isCurrentUserTyping(shouldShowTyping);
+      await _chatService.setTypingStatus(
+          activeChat.id, userId, shouldShowTyping);
+    }
+
+    _typingDebounceTimer?.cancel();
+    if (shouldShowTyping) {
+      _typingDebounceTimer = Timer(const Duration(milliseconds: 1300), () {
+        stopTyping();
+      });
+    }
+  }
+
+  Future<void> stopTyping() async {
+    final activeChat = selectedChat.value;
+    final userId = _userId;
+    if (activeChat == null || userId == null) {
+      return;
+    }
+    if (!isCurrentUserTyping.value) {
+      return;
+    }
+
+    isCurrentUserTyping(false);
+    await _chatService.clearTypingStatus(activeChat.id, userId);
+  }
+
+  void _startPeerTypingPolling() {
+    _peerTypingPollTimer?.cancel();
+    _peerTypingPollTimer =
+        Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _refreshPeerTypingStatus();
+    });
+  }
+
+  Future<void> _refreshPeerTypingStatus() async {
+    final activeChat = selectedChat.value;
+    final userId = _userId;
+    if (activeChat == null || userId == null) {
+      isPeerTyping(false);
+      return;
+    }
+    final peerTyping =
+        await _chatService.getPeerTypingStatus(activeChat.id, userId);
+    isPeerTyping(peerTyping);
+  }
+
   /// Send message
   Future<bool> sendMessage(String messageText) async {
     try {
       if (selectedChat.value == null) return false;
+
+      await stopTyping();
 
       final success = await _chatService.sendMessage(
         selectedChat.value!.id,
@@ -129,4 +203,16 @@ class ChatController extends GetxController {
 
   /// Get unread count
   int getUnreadCount() => unreadCount.value;
+
+  bool isMyMessage(MessageModel message) {
+    return message.senderId == _userId;
+  }
+
+  @override
+  void onClose() {
+    stopTyping();
+    _typingDebounceTimer?.cancel();
+    _peerTypingPollTimer?.cancel();
+    super.onClose();
+  }
 }

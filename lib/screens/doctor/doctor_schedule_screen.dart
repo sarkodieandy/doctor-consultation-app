@@ -229,7 +229,7 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen> {
                         ),
                       ),
                       value: entry.value,
-                      activeColor: kBlueColor,
+                      activeThumbColor: kBlueColor,
                       onChanged: (value) {
                         setState(() {
                           _workingDays[entry.key] = value;

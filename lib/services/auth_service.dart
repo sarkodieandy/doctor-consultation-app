@@ -1,6 +1,8 @@
-import 'dart:async';
+import 'dart:io';
+
 import 'package:doctor_consultation_app/models/user_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -11,33 +13,33 @@ class AuthService {
 
   AuthService._internal();
 
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   UserModel? _currentUser;
 
-  UserModel? get currentUser => _currentUser;
+  UserModel? get currentUser => _currentUser ?? _store.currentUser;
 
-  bool get isLoggedIn => _supabase.auth.currentUser != null;
+  bool get isLoggedIn => currentUser != null;
+  bool get isDoctor => currentUser?.isDoctor ?? false;
+  bool get isPatient => currentUser?.isPatient ?? false;
+  bool get isDoctorApproved => currentUser?.isDoctorApproved ?? false;
 
-  bool get isDoctor => _currentUser?.isDoctor ?? false;
-  bool get isPatient => _currentUser?.isPatient ?? false;
-  bool get isDoctorApproved => _currentUser?.isDoctorApproved ?? false;
+  List<UserModel> get pendingDoctors => _store.users
+      .where((user) =>
+          user.isDoctor && user.approvalStatus == DoctorApprovalStatus.pending)
+      .toList();
 
-  List<UserModel> get pendingDoctors => [];
-  List<UserModel> get approvedDoctors => [];
+  List<UserModel> get approvedDoctors => _store.users
+      .where((user) => user.isDoctor && user.isDoctorApproved)
+      .toList();
 
   String resolveUserId({
     Object? fallback,
     String defaultValue = 'user_123',
   }) {
-    final currentUserId = _normalizeUserId(_currentUser?.id);
+    final currentUserId = _normalizeUserId(currentUser?.id);
     if (currentUserId != null) {
       return currentUserId;
-    }
-
-    final authUser = _supabase.auth.currentUser;
-    if (authUser != null) {
-      return authUser.id;
     }
 
     if (fallback is String) {
@@ -58,156 +60,103 @@ class AuthService {
     return defaultValue;
   }
 
-  /// Fetch user profile from Supabase 'profiles' table
-  Future<UserModel?> _fetchProfile(String userId) async {
-    try {
-      final data = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle()
-          .timeout(
-            Duration(seconds: 5),
-            onTimeout: () => throw TimeoutException('Profile fetch timeout'),
-          );
+  static const _kUserIdKey = 'session_user_id';
 
-      if (data != null) {
-        return UserModel.fromJson(data);
-      }
-      return null;
-    } catch (e) {
-      print('❌ Error fetching profile: $e');
-      rethrow;
-    }
-  }
-
-  /// Create or update user profile in Supabase
-  Future<void> _upsertProfile(UserModel user) async {
-    try {
-      await _supabase.from('profiles').upsert(user.toJson());
-    } catch (e) {
-      print('Error upserting profile: \$e');
-    }
-  }
-
-  /// Initialize current user from existing Supabase session
   Future<void> initSession() async {
-    try {
-      final authUser = _supabase.auth.currentUser;
-      if (authUser != null) {
-        _currentUser = await _fetchProfile(authUser.id).timeout(
-          Duration(seconds: 5),
-          onTimeout: () {
-            print('⚠️ Profile fetch timeout for user: ${authUser.id}');
-            return null;
-          },
-        );
+    // First try in-memory (already set this session)
+    String? userId = _store.currentUserId;
+
+    // Fall back to persisted session from SharedPreferences
+    if (userId == null) {
+      final prefs = await SharedPreferences.getInstance();
+      userId = prefs.getString(_kUserIdKey);
+      if (userId != null) {
+        _store.currentUserId = userId;
       }
-    } catch (e) {
-      print('❌ Error initializing session: $e');
-      // Don't rethrow - allow app to continue even if profile fetch fails
     }
+
+    if (userId == null) {
+      _currentUser = null;
+      return;
+    }
+    _currentUser = _store.findUserById(userId);
   }
 
-  /// Login with email and password
   Future<bool> login(String email, String password) async {
-    try {
-      if (email.isEmpty || password.isEmpty) {
-        throw 'Email and password cannot be empty';
-      }
+    final normalizedEmail = email.trim().toLowerCase();
+    final trimmedPassword = password.trim();
 
-      if (!_isValidEmail(email)) {
-        throw 'Invalid email format';
-      }
+    if (normalizedEmail.isEmpty) throw 'Please enter your email address.';
+    if (trimmedPassword.isEmpty) throw 'Please enter your password.';
 
-      if (password.length < 3) {
-        throw 'Password must be at least 3 characters';
-      }
-
-      final response = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (response.user != null) {
-        _currentUser = await _fetchProfile(response.user!.id);
-
-        // If no profile exists yet, create a basic patient profile
-        if (_currentUser == null) {
-          _currentUser = UserModel(
-            id: response.user!.id,
-            email: email,
-            firstName: email.split('@')[0],
-            lastName: '',
-            phone: '',
-            createdAt: DateTime.now(),
-            role: UserRole.patient,
-          );
-          await _upsertProfile(_currentUser!);
-        }
-
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      if (e is AuthException) {
-        throw e.message;
-      }
-      rethrow;
+    final user = _store.findUserByEmail(normalizedEmail);
+    if (user == null) {
+      throw 'No account found with this email. Please sign up first.';
     }
+
+    final storedPassword = _store.passwordsByEmail[normalizedEmail];
+    // Test accounts (seeded from local store) accept any password
+    final isTestAccount = normalizedEmail == 'patient@test.com' ||
+        normalizedEmail == 'doctor@test.com' ||
+        normalizedEmail == 'admin@test.com';
+    if (!isTestAccount && storedPassword != trimmedPassword) {
+      throw 'Incorrect password. Please try again.';
+    }
+
+    _currentUser = user;
+    _store.currentUserId = user.id;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserIdKey, user.id);
+    return true;
   }
 
-  /// Sign up as patient
-  Future<bool> signup(String email, String firstName, String lastName,
-      String phone, String password) async {
-    try {
-      if (email.isEmpty ||
-          password.isEmpty ||
-          firstName.isEmpty ||
-          lastName.isEmpty ||
-          phone.isEmpty) {
-        throw 'All fields are required';
-      }
+  Future<bool> signup(
+    String email,
+    String firstName,
+    String lastName,
+    String phone,
+    String password, {
+    File? profilePictureFile,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
 
-      if (!_isValidEmail(email)) {
-        throw 'Invalid email format';
-      }
-
-      if (password.length < 6) {
-        throw 'Password must be at least 6 characters';
-      }
-
-      final response = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (response.user != null) {
-        _currentUser = UserModel(
-          id: response.user!.id,
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          phone: phone,
-          createdAt: DateTime.now(),
-          role: UserRole.patient,
-        );
-
-        await _upsertProfile(_currentUser!);
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      if (e is AuthException) {
-        throw e.message;
-      }
-      rethrow;
+    if (normalizedEmail.isEmpty ||
+        password.isEmpty ||
+        firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty) {
+      throw 'All fields are required';
     }
+    if (!_isValidEmail(normalizedEmail)) {
+      throw 'Invalid email format';
+    }
+    if (password.length < 6) {
+      throw 'Password must be at least 6 characters';
+    }
+    if (_store.findUserByEmail(normalizedEmail) != null) {
+      throw 'An account with this email already exists';
+    }
+
+    final user = UserModel(
+      id: _store.nextId('user'),
+      email: normalizedEmail,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      profileImage: profilePictureFile?.path ?? '',
+      createdAt: DateTime.now(),
+      role: UserRole.patient,
+    );
+
+    _store.passwordsByEmail[normalizedEmail] = password;
+    _store.saveUser(user);
+    _store.currentUserId = user.id;
+    _currentUser = user;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserIdKey, user.id);
+    return true;
   }
 
-  /// Sign up as doctor (requires admin approval)
   Future<bool> signupDoctor({
     required String email,
     required String firstName,
@@ -219,135 +168,115 @@ class AuthService {
     required double consultationFee,
     required String licenseDocumentPath,
     String bio = '',
+    File? profilePictureFile,
   }) async {
-    try {
-      if (email.isEmpty ||
-          password.isEmpty ||
-          firstName.isEmpty ||
-          lastName.isEmpty ||
-          phone.isEmpty ||
-          specialty.isEmpty ||
-          experience.isEmpty) {
-        throw 'All fields are required';
-      }
+    final normalizedEmail = email.trim().toLowerCase();
 
-      if (!_isValidEmail(email)) {
-        throw 'Invalid email format';
-      }
-
-      if (password.length < 6) {
-        throw 'Password must be at least 6 characters';
-      }
-
-      if (licenseDocumentPath.isEmpty) {
-        throw 'Medical license document is required';
-      }
-
-      final response = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (response.user != null) {
-        _currentUser = UserModel(
-          id: response.user!.id,
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          phone: phone,
-          bio: bio,
-          createdAt: DateTime.now(),
-          role: UserRole.doctor,
-          specialty: specialty,
-          experience: experience,
-          consultationFee: consultationFee,
-          licenseDocumentPath: licenseDocumentPath,
-          approvalStatus: DoctorApprovalStatus.pending,
-          isOnline: false,
-        );
-
-        await _upsertProfile(_currentUser!);
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      if (e is AuthException) {
-        throw e.message;
-      }
-      rethrow;
+    if (normalizedEmail.isEmpty ||
+        password.isEmpty ||
+        firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
+        specialty.isEmpty ||
+        experience.isEmpty) {
+      throw 'All fields are required';
     }
+    if (!_isValidEmail(normalizedEmail)) {
+      throw 'Invalid email format';
+    }
+    if (password.length < 6) {
+      throw 'Password must be at least 6 characters';
+    }
+    if (licenseDocumentPath.isEmpty) {
+      throw 'Medical license document is required';
+    }
+    if (_store.findUserByEmail(normalizedEmail) != null) {
+      throw 'An account with this email already exists';
+    }
+
+    final user = UserModel(
+      id: _store.nextId('user'),
+      email: normalizedEmail,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      bio: bio,
+      profileImage: profilePictureFile?.path ?? '',
+      createdAt: DateTime.now(),
+      role: UserRole.doctor,
+      specialty: specialty,
+      experience: experience,
+      consultationFee: consultationFee,
+      licenseDocumentPath: licenseDocumentPath,
+      approvalStatus: DoctorApprovalStatus.pending,
+      isOnline: false,
+    );
+
+    _store.passwordsByEmail[normalizedEmail] = password;
+    _store.saveUser(user);
+    _store.currentUserId = user.id;
+    _currentUser = user;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserIdKey, user.id);
+    return true;
   }
 
-  /// Admin approves doctor
   Future<void> approveDoctor(String doctorId) async {
-    try {
-      await _supabase
-          .from('profiles')
-          .update({'approval_status': 'approved'}).eq('id', doctorId);
-
-      if (_currentUser?.id == doctorId) {
-        _currentUser = _currentUser!.copyWith(
-          approvalStatus: DoctorApprovalStatus.approved,
-        );
-      }
-    } catch (e) {
-      print('Error approving doctor: \$e');
+    final doctor = _store.findUserById(doctorId);
+    if (doctor == null) return;
+    final updated = doctor.copyWith(
+      approvalStatus: DoctorApprovalStatus.approved,
+      approvalNote: 'Approved in local UI-only mode.',
+    );
+    _store.saveUser(updated);
+    if (_currentUser?.id == doctorId) {
+      _currentUser = updated;
     }
   }
 
-  /// Admin rejects doctor
   Future<void> rejectDoctor(String doctorId, String reason) async {
-    try {
-      await _supabase.from('profiles').update({
-        'approval_status': 'rejected',
-        'approval_note': reason,
-      }).eq('id', doctorId);
-
-      if (_currentUser?.id == doctorId) {
-        _currentUser = _currentUser!.copyWith(
-          approvalStatus: DoctorApprovalStatus.rejected,
-          approvalNote: reason,
-        );
-      }
-    } catch (e) {
-      print('Error rejecting doctor: \$e');
+    final doctor = _store.findUserById(doctorId);
+    if (doctor == null) return;
+    final updated = doctor.copyWith(
+      approvalStatus: DoctorApprovalStatus.rejected,
+      approvalNote: reason,
+    );
+    _store.saveUser(updated);
+    if (_currentUser?.id == doctorId) {
+      _currentUser = updated;
     }
   }
 
-  /// Toggle doctor online status
   Future<void> toggleDoctorOnline(bool isOnline) async {
-    if (_currentUser?.isDoctor ?? false) {
-      _currentUser = _currentUser!.copyWith(isOnline: isOnline);
-      try {
-        await _supabase
-            .from('profiles')
-            .update({'is_online': isOnline}).eq('id', _currentUser!.id);
-      } catch (e) {
-        print('Error toggling online status: \$e');
-      }
-    }
+    final user = currentUser;
+    if (user == null || !user.isDoctor) return;
+    final updated = user.copyWith(isOnline: isOnline);
+    _store.saveUser(updated);
+    _currentUser = updated;
   }
 
   Future<void> logout() async {
-    await _supabase.auth.signOut();
+    _store.currentUserId = null;
     _currentUser = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kUserIdKey);
   }
 
   Future<bool> resetPassword(String email) async {
-    try {
-      if (!_isValidEmail(email)) {
-        throw 'Invalid email format';
-      }
-
-      await _supabase.auth.resetPasswordForEmail(email);
-      return true;
-    } catch (e) {
-      if (e is AuthException) {
-        throw e.message;
-      }
-      rethrow;
+    if (!_isValidEmail(email.trim().toLowerCase())) {
+      throw 'Invalid email format';
     }
+    return _store.findUserByEmail(email.trim().toLowerCase()) != null;
+  }
+
+  Future<String> uploadProfilePicture(String userId, File imageFile) async {
+    return imageFile.path;
+  }
+
+  Future<void> updateCurrentUser(UserModel user) async {
+    _store.saveUser(user);
+    _currentUser = user;
+    _store.currentUserId = user.id;
   }
 
   bool _isValidEmail(String email) {

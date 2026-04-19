@@ -1,6 +1,6 @@
 import 'package:doctor_consultation_app/constant.dart';
-import 'package:doctor_consultation_app/screens/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class OnboardingScreen extends StatelessWidget {
   @override
@@ -29,39 +29,44 @@ class OnboardingScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Choose The Doctor\nYou Want',
+                      'Connect To Care\nAcross Ghana',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 32,
                         color: kTitleTextColor,
                       ),
                     ),
-                    SizedBox(
-                      height: 20,
-                    ),
+                    const SizedBox(height: 20),
                     Text(
-                      'Lorem ipsum dolor amet, consectetur\nadipiscing inet deli',
+                      'Find trusted doctors, prepare records before your visit, and keep prescriptions and follow-ups in one place.',
                       style: TextStyle(
                         fontSize: 16,
+                        height: 1.5,
                         color: kTitleTextColor.withOpacity(0.7),
                       ),
                     ),
-                    SizedBox(
-                      height: 20,
+                    const SizedBox(height: 24),
+                    _buildOnboardingPoint(
+                      Icons.verified_user_outlined,
+                      'Verified local specialists',
                     ),
+                    const SizedBox(height: 12),
+                    _buildOnboardingPoint(
+                      Icons.translate,
+                      'Choose care by region and language',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildOnboardingPoint(
+                      Icons.medical_information_outlined,
+                      'Keep records and prescriptions ready',
+                    ),
+                    const SizedBox(height: 28),
                     MaterialButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => HomeScreen(),
-                          ),
-                        );
+                        Get.offNamed('/home');
                       },
                       color: kOrangeColor,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 30,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -80,6 +85,27 @@ class OnboardingScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildOnboardingPoint(IconData icon, String text) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: kBlueColor.withOpacity(0.12),
+          child: Icon(icon, color: kBlueColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: kTitleTextColor,
+          ),
+        ),
+      ],
     );
   }
 }

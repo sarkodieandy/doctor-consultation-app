@@ -1,4 +1,5 @@
 import 'package:doctor_consultation_app/constant.dart';
+import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/models/user_model.dart';
 import 'package:doctor_consultation_app/screens/login_screen.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
@@ -12,7 +13,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = AuthService();
-  late UserModel _user;
+  UserModel? _user;
   bool _isEditing = false;
 
   late TextEditingController _firstNameController;
@@ -23,11 +24,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _user = _authService.currentUser!;
-    _firstNameController = TextEditingController(text: _user.firstName);
-    _lastNameController = TextEditingController(text: _user.lastName);
-    _phoneController = TextEditingController(text: _user.phone);
-    _bioController = TextEditingController(text: _user.bio);
+    _user = _authService.currentUser;
+
+    if (_user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      });
+    }
+
+    _firstNameController = TextEditingController(text: _user?.firstName ?? '');
+    _lastNameController = TextEditingController(text: _user?.lastName ?? '');
+    _phoneController = TextEditingController(text: _user?.phone ?? '');
+    _bioController = TextEditingController(text: _user?.bio ?? '');
   }
 
   @override
@@ -39,16 +50,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _saveProfile() {
-    // Update user in service
-    _user = _user.copyWith(
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      phone: _phoneController.text,
-      bio: _bioController.text,
+  Future<void> _saveProfile() async {
+    final user = _user;
+    if (user == null) {
+      return;
+    }
+
+    final updatedUser = user.copyWith(
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      bio: _bioController.text.trim(),
     );
 
+    await _authService.updateCurrentUser(updatedUser);
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
+      _user = updatedUser;
       _isEditing = false;
     });
 
@@ -63,6 +85,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = _user;
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: kBackgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(color: kOrangeColor),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
@@ -99,196 +131,323 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Profile Picture
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: kBlueColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: kBlueColor,
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.person,
-                    size: 60,
-                    color: kBlueColor,
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroCard(user),
+            SizedBox(height: 18),
+            if (_isEditing)
+              _buildEditSection(user)
+            else
+              _buildProfileSections(user),
+            SizedBox(height: 24),
+            _buildQuickActions(),
+          ],
+        ),
+      ),
+    );
+  }
 
-              if (_isEditing) ...[
-                // First Name
-                _buildLabel('First Name'),
-                SizedBox(height: 10),
-                _buildEditTextField(_firstNameController),
-                SizedBox(height: 20),
-
-                // Last Name
-                _buildLabel('Last Name'),
-                SizedBox(height: 10),
-                _buildEditTextField(_lastNameController),
-                SizedBox(height: 20),
-
-                // Email (Read-only)
-                _buildLabel('Email Address'),
-                SizedBox(height: 10),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: kSearchBackgroundColor,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Text(
-                    _user.email,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: kTitleTextColor,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                SizedBox(height: 20),
-
-                // Phone
-                _buildLabel('Phone Number'),
-                SizedBox(height: 10),
-                _buildEditTextField(_phoneController),
-                SizedBox(height: 20),
-
-                // Bio
-                _buildLabel('Bio'),
-                SizedBox(height: 10),
-                _buildEditTextField(_bioController, maxLines: 4),
-                SizedBox(height: 30),
-
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: MaterialButton(
-                    onPressed: _saveProfile,
-                    color: kOrangeColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        color: kWhiteColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 15),
-
-                // Cancel Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isEditing = false;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      side: BorderSide(color: kTitleTextColor, width: 1),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: kTitleTextColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ] else ...[
-                // Display Mode
+  Widget _buildHeroCard(UserModel user) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 34,
+            backgroundImage: _profileImageProvider(user.profileImage),
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  _user.fullName,
+                  user.fullName,
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: kTitleTextColor,
                   ),
                 ),
-                SizedBox(height: 5),
+                SizedBox(height: 4),
                 Text(
-                  _user.email,
+                  user.email,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: kTitleTextColor.withOpacity(0.6),
                   ),
                 ),
-                SizedBox(height: 30),
-
-                // Profile Info Cards
-                _buildProfileInfoCard(
-                  icon: Icons.phone_outlined,
-                  label: 'Phone',
-                  value: _user.phone,
-                ),
-                SizedBox(height: 15),
-
-                _buildProfileInfoCard(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Member Since',
-                  value: _formatDate(_user.createdAt),
-                ),
-                SizedBox(height: 15),
-
-                if (_user.bio.isNotEmpty)
-                  _buildProfileInfoCard(
-                    icon: Icons.info_outlined,
-                    label: 'Bio',
-                    value: _user.bio,
-                  ),
-              ],
-
-              SizedBox(height: 40),
-
-              // Logout Button
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: MaterialButton(
-                  onPressed: () {
-                    _showLogoutConfirmation();
-                  },
-                  color: Color(0xffFF6B6B).withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: Color(0xffFF6B6B)),
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: kBlueColor,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Logout',
+                    'Patient account',
                     style: TextStyle(
-                      color: Color(0xffFF6B6B),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      color: kWhiteColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditSection(UserModel user) {
+    return Container(
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('First Name'),
+          SizedBox(height: 10),
+          _buildEditTextField(_firstNameController),
+          SizedBox(height: 18),
+          _buildLabel('Last Name'),
+          SizedBox(height: 10),
+          _buildEditTextField(_lastNameController),
+          SizedBox(height: 18),
+          _buildLabel('Email Address'),
+          SizedBox(height: 10),
+          _buildReadonlyField(user.email),
+          SizedBox(height: 18),
+          _buildLabel('Phone Number'),
+          SizedBox(height: 10),
+          _buildEditTextField(_phoneController),
+          SizedBox(height: 18),
+          _buildLabel('Bio'),
+          SizedBox(height: 10),
+          _buildEditTextField(_bioController, maxLines: 4),
+          SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: MaterialButton(
+              onPressed: _saveProfile,
+              color: kBlueColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Text(
+                'Save Changes',
+                style: TextStyle(
+                  color: kWhiteColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: OutlinedButton(
+              onPressed: () {
+                setState(() {
+                  _firstNameController.text = user.firstName;
+                  _lastNameController.text = user.lastName;
+                  _phoneController.text = user.phone;
+                  _bioController.text = user.bio;
+                  _isEditing = false;
+                });
+              },
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                side: BorderSide(color: kTitleTextColor, width: 1),
+              ),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: kTitleTextColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileSections(UserModel user) {
+    return Column(
+      children: [
+        _buildSectionCard(
+          title: 'Account Information',
+          children: [
+            _buildProfileInfoCard(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: user.phone.isEmpty ? 'Add your phone number' : user.phone,
+            ),
+            SizedBox(height: 12),
+            _buildProfileInfoCard(
+              icon: Icons.info_outline,
+              label: 'Bio',
+              value: user.bio.isEmpty
+                  ? 'Add a short profile note for your doctors.'
+                  : user.bio,
+            ),
+            SizedBox(height: 12),
+            _buildProfileInfoCard(
+              icon: Icons.event_available_outlined,
+              label: 'Member Since',
+              value: _formatDate(user.createdAt),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Actions',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: kTitleTextColor,
+            ),
+          ),
+          SizedBox(height: 14),
+          _buildActionTile(
+            icon: Icons.calendar_month_outlined,
+            title: 'My Appointments',
+            subtitle: 'Review upcoming and completed visits',
+            onTap: () => Get.toNamed('/appointments'),
+          ),
+          _buildActionTile(
+            icon: Icons.folder_outlined,
+            title: 'Health Records',
+            subtitle: 'Keep visit notes and reports accessible',
+            onTap: () => Get.toNamed('/health-records'),
+          ),
+          _buildActionTile(
+            icon: Icons.medication_outlined,
+            title: 'Prescriptions',
+            subtitle: 'Track active medication instructions',
+            onTap: () => Get.toNamed('/prescriptions'),
+          ),
+          _buildActionTile(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            subtitle: 'Review reminders and updates',
+            onTap: () => Get.toNamed('/notifications'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: kTitleTextColor,
+            ),
+          ),
+          SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: kBlueColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: kWhiteColor),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: kTitleTextColor,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: kTitleTextColor.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
         ),
       ),
     );
@@ -301,6 +460,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         fontWeight: FontWeight.bold,
         fontSize: 14,
         color: kTitleTextColor,
+      ),
+    );
+  }
+
+  Widget _buildReadonlyField(String value) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: kSearchBackgroundColor,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize: 14,
+          color: kTitleTextColor,
+        ),
       ),
     );
   }
@@ -332,15 +509,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: kWhiteColor,
+        color: kBackgroundColor,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -348,11 +518,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: kBlueColor.withOpacity(0.1),
+              color: kBlueColor,
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Icon(icon, color: kBlueColor, size: 24),
+              child: Icon(icon, color: kWhiteColor, size: 24),
             ),
           ),
           SizedBox(width: 15),
@@ -375,8 +545,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fontSize: 14,
                     color: kTitleTextColor,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -401,34 +569,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'Nov',
       'Dec'
     ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    return '${months[date.month - 1]} ${date.year}';
   }
 
-  void _showLogoutConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: kTitleTextColor)),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _authService.logout();
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            },
-            child: Text('Logout', style: TextStyle(color: Color(0xffFF6B6B))),
-          ),
-        ],
-      ),
-    );
+  ImageProvider<Object> _profileImageProvider(String imagePath) {
+    if (imagePath.trim().isEmpty) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    if (imagePath.startsWith('assets/')) {
+      return AssetImage(imagePath);
+    }
+    return NetworkImage(imagePath);
   }
 }

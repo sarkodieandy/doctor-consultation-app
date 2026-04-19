@@ -38,51 +38,9 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
     super.dispose();
   }
 
-  // Mock appointment data
-  final List<Map<String, dynamic>> _appointments = [
-    {
-      'patient': 'Kwame Mensah',
-      'time': '10:00 AM',
-      'date': 'Today',
-      'type': 'General Checkup',
-      'status': 'pending',
-    },
-    {
-      'patient': 'Ama Serwaa',
-      'time': '11:00 AM',
-      'date': 'Today',
-      'type': 'Follow-up Visit',
-      'status': 'confirmed',
-    },
-    {
-      'patient': 'Kofi Asante',
-      'time': '2:00 PM',
-      'date': 'Today',
-      'type': 'Consultation',
-      'status': 'confirmed',
-    },
-    {
-      'patient': 'Yaa Boateng',
-      'time': '9:00 AM',
-      'date': 'Tomorrow',
-      'type': 'Skin Checkup',
-      'status': 'pending',
-    },
-    {
-      'patient': 'Esi Ampofo',
-      'time': '3:00 PM',
-      'date': 'Yesterday',
-      'type': 'Consultation',
-      'status': 'completed',
-    },
-    {
-      'patient': 'Nana Yaw',
-      'time': '4:00 PM',
-      'date': 'Yesterday',
-      'type': 'Follow-up',
-      'status': 'cancelled',
-    },
-  ];
+  // Mock appointment data - REMOVED for real testing
+  // Real appointments will load from Supabase
+  final List<Map<String, dynamic>> _appointments = [];
 
   List<Map<String, dynamic>> _filterByStatus(String status) {
     if (status == 'all') return _appointments;

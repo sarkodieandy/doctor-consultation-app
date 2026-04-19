@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/health_record_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class HealthRecordService {
   static final HealthRecordService _instance = HealthRecordService._internal();
@@ -9,25 +9,15 @@ class HealthRecordService {
   }
 
   HealthRecordService._internal();
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Get all health records
   Future<List<HealthRecordModel>> getHealthRecords(String userId) async {
-    try {
-      final data = await _supabase
-          .from('health_records')
-          .select()
-          .eq('user_id', userId)
-          .order('record_date', ascending: false);
-
-      return (data as List)
-          .map((json) => HealthRecordModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching health records: $e');
-      return [];
-    }
+    final records = _store.healthRecords
+        .where((record) => record.userId == userId)
+        .toList();
+    records.sort((left, right) => right.recordDate.compareTo(left.recordDate));
+    return records;
   }
 
   /// Get records by type
@@ -35,21 +25,11 @@ class HealthRecordService {
     String userId,
     String type,
   ) async {
-    try {
-      final data = await _supabase
-          .from('health_records')
-          .select()
-          .eq('user_id', userId)
-          .eq('type', type)
-          .order('record_date', ascending: false);
-
-      return (data as List)
-          .map((json) => HealthRecordModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching records by type: $e');
-      return [];
-    }
+    final records = _store.healthRecords
+        .where((record) => record.userId == userId && record.type == type)
+        .toList();
+    records.sort((left, right) => right.recordDate.compareTo(left.recordDate));
+    return records;
   }
 
   /// Get vital signs
@@ -76,84 +56,54 @@ class HealthRecordService {
     String unit,
     String? notes,
   ) async {
-    try {
-      await _supabase.from('health_records').insert({
-        'user_id': userId,
-        'type': type,
-        'title': title,
-        'value': value,
-        'unit': unit,
-        'status': 'normal',
-        'record_date': DateTime.now().toIso8601String(),
-        'notes': notes,
-      });
-      return true;
-    } catch (e) {
-      print('Error adding health record: $e');
-      return false;
-    }
+    _store.healthRecords.add(
+      HealthRecordModel(
+        id: _store.nextId('record'),
+        userId: userId,
+        type: type,
+        title: title,
+        value: value,
+        unit: unit,
+        status: 'normal',
+        recordDate: DateTime.now(),
+        notes: notes,
+      ),
+    );
+    return true;
   }
 
   /// Update record
   Future<bool> updateRecord(HealthRecordModel record) async {
-    try {
-      final json = record.toJson();
-      json.remove('id');
-      await _supabase.from('health_records').update(json).eq('id', record.id);
-      return true;
-    } catch (e) {
-      print('Error updating health record: $e');
-      return false;
-    }
+    final index =
+        _store.healthRecords.indexWhere((item) => item.id == record.id);
+    if (index == -1) return false;
+    _store.healthRecords[index] = record;
+    return true;
   }
 
   /// Delete record
   Future<bool> deleteRecord(String recordId) async {
-    try {
-      await _supabase.from('health_records').delete().eq('id', recordId);
-      return true;
-    } catch (e) {
-      print('Error deleting health record: $e');
-      return false;
-    }
+    _store.healthRecords.removeWhere((record) => record.id == recordId);
+    return true;
   }
 
   /// Get latest vital signs
   Future<Map<String, String>> getLatestVitals(String userId) async {
-    try {
-      final data = await _supabase
-          .from('health_records')
-          .select()
-          .eq('user_id', userId)
-          .eq('type', 'vital')
-          .order('record_date', ascending: false);
+    final vitals = await getVitalSigns(userId);
 
-      final vitals = (data as List)
-          .map((json) => HealthRecordModel.fromJson(json))
-          .toList();
-
-      String findValue(String title) {
-        try {
-          return vitals.firstWhere((v) => v.title == title).value;
-        } catch (_) {
-          return '--';
-        }
+    String findValue(String title) {
+      try {
+        return vitals.firstWhere((record) => record.title == title).value;
+      } catch (_) {
+        return '--';
       }
-
-      return {
-        'heart_rate': findValue('Heart Rate'),
-        'blood_pressure': findValue('Blood Pressure'),
-        'temperature': findValue('Temperature'),
-        'weight': findValue('Weight'),
-      };
-    } catch (e) {
-      print('Error fetching latest vitals: $e');
-      return {
-        'heart_rate': '--',
-        'blood_pressure': '--',
-        'temperature': '--',
-        'weight': '--',
-      };
     }
+
+    return {
+      'heart_rate': findValue('Heart Rate'),
+      'blood_pressure': findValue('Blood Pressure'),
+      'temperature': findValue('Temperature'),
+      'weight': findValue('Weight'),
+    };
   }
 }

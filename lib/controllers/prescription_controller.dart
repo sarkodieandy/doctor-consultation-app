@@ -1,10 +1,12 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:doctor_consultation_app/services/prescription_service.dart';
 import 'package:get/get.dart';
 
 class PrescriptionController extends GetxController {
   final _authService = AuthService();
+  final _notificationService = NotificationService();
   final _prescriptionService = PrescriptionService();
 
   final allPrescriptions = <PrescriptionModel>[].obs;
@@ -141,6 +143,32 @@ class PrescriptionController extends GetxController {
     } catch (e) {
       errorMessage(e.toString());
       return null;
+    }
+  }
+
+  Future<bool> sendMedicineReminder(
+    PrescriptionModel prescription,
+    Medicine medicine,
+  ) async {
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) {
+      errorMessage('User ID not found');
+      return false;
+    }
+
+    try {
+      await _notificationService.sendMedicationReminder(
+        prescriptionId: prescription.id,
+        medicineId: medicine.id,
+        medicineName: medicine.name,
+        dosage: medicine.dosage,
+        frequency: medicine.frequency,
+        userId: userId,
+      );
+      return true;
+    } catch (e) {
+      errorMessage(e.toString());
+      return false;
     }
   }
 }

@@ -1,9 +1,9 @@
 import 'package:doctor_consultation_app/constant.dart';
-import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:doctor_consultation_app/services/payment_service.dart';
+import 'package:doctor_consultation_app/services/paystack_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -14,17 +14,26 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
+  final _authService = AuthService();
+  final _paymentService = PaymentService();
+  final _notificationService = NotificationService();
+  final _paystackService = PaystackService();
+
   late DoctorModel doctor;
   late DateTime appointmentDate;
   late String appointmentTime;
+  late String consultationId;
+  late String consultationMode;
+  late String preferredLanguage;
+  late String visitReason;
+  late String symptomDescription;
+  late String careNotes;
+  late List<dynamic> selectedSymptoms;
 
-  final paymentService = PaymentService();
-  final notificationService = NotificationService();
-  final controller = Get.find<AppointmentController>();
-  final authService = AuthService();
-
+  double commissionAmount = 0;
+  double doctorEarnings = 0;
+  bool isLoading = true;
   bool isProcessing = false;
-  String? _pendingAppointmentId;
 
   @override
   void initState() {
@@ -33,512 +42,325 @@ class _PaymentScreenState extends State<PaymentScreen> {
     doctor = args['doctor'];
     appointmentDate = args['date'];
     appointmentTime = args['time'];
+    consultationId = args['consultation_id'] ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    consultationMode = args['mode'] ?? 'Video';
+    preferredLanguage = args['language'] ?? 'English';
+    visitReason = args['reason'] ?? 'General review';
+    symptomDescription = args['description'] ?? '';
+    careNotes = args['notes'] ?? '';
+    selectedSymptoms = (args['symptoms'] as List<dynamic>? ?? []);
+    _loadPreview();
+  }
 
-    paymentService.initializePayment(
-      onSuccess: _handlePaymentSuccess,
-      onFailure: _handlePaymentFailure,
+  Future<void> _loadPreview() async {
+    commissionAmount = await _paystackService.getCommissionAmount(
+      doctor.id,
+      doctor.consultationFee,
+    );
+    doctorEarnings = doctor.consultationFee - commissionAmount;
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _completePayment() async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to continue.')),
+      );
+      return;
+    }
+
+    setState(() => isProcessing = true);
+
+    _paymentService.initializePayment(
+      onSuccess: (_) async {
+        await _paystackService.createDoctorPayout(
+          doctorId: doctor.id,
+          paymentId: consultationId,
+          payoutAmount: doctorEarnings,
+          commissionAmount: commissionAmount,
+        );
+        await _notificationService.sendPaymentSuccess(
+          paymentId: consultationId,
+          amount: doctor.consultationFee,
+          appointmentId: consultationId,
+          userId: user.id,
+        );
+        if (!mounted) return;
+        setState(() => isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment completed in local preview mode.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            Get.back(result: true);
+          }
+        });
+      },
+      onFailure: (message) {
+        if (!mounted) return;
+        setState(() => isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      },
+    );
+
+    await _paymentService.processPayment(
+      appointmentId: consultationId,
+      doctorId: doctor.id,
+      userId: user.id,
+      amount: doctor.consultationFee,
+      userEmail: user.email,
+      userName: user.fullName,
     );
   }
 
-  int _selectedPaymentMethod = 0; // 0 = Paystack, 1 = Wallet
-
   @override
   Widget build(BuildContext context) {
+    final consultationFee = doctor.consultationFee;
+
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
         backgroundColor: kBackgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
-          onPressed: () {
-            if (!isProcessing) Get.back();
-          },
-        ),
-        title: Text(
-          'Payment',
-          style: TextStyle(
-            color: kTitleTextColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
+        title: const Text('Payment Preview'),
         centerTitle: true,
       ),
-      body: isProcessing
-          ? Center(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: kOrangeColor),
-                  SizedBox(height: 20),
-                  Text(
-                    'Processing Payment...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: kTitleTextColor,
-                      fontWeight: FontWeight.w500,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Backend payment processing has been removed. This screen now previews the UI-only payment state.',
+                      style: TextStyle(fontSize: 13),
                     ),
                   ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Order Summary
-                    Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: kWhiteColor,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            spreadRadius: 1,
-                            blurRadius: 10,
-                          )
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Order Summary',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: kTitleTextColor,
-                            ),
-                          ),
-                          SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Doctor',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                doctor.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Specialty',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                doctor.specialty,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Date & Time',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                '${DateFormat('MMM dd').format(appointmentDate)}, $appointmentTime',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Consultation Fee',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Taxes & Charges',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                'GHS 50',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Total Amount',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: kTitleTextColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'GHS ${(doctor.consultationFee + 50).toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: kOrangeColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    SizedBox(height: 25),
-
-                    // Payment Methods
-                    Text(
-                      'Payment Method',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: kTitleTextColor,
-                      ),
-                    ),
-                    SizedBox(height: 15),
-
-                    // Paystack Payment Option
-                    _paymentMethodCard(
-                      title: 'Pay with Paystack',
-                      subtitle: 'Credit Card, Debit Card, Mobile Money',
-                      icon: Icons.payment,
-                      selected: _selectedPaymentMethod == 0,
-                      onTap: () => setState(() => _selectedPaymentMethod = 0),
-                    ),
-                    SizedBox(height: 15),
-
-                    // Wallet Payment Option
-                    _paymentMethodCard(
-                      title: 'Wallet Balance',
-                      subtitle: 'GHS 500 available',
-                      icon: Icons.account_balance_wallet,
-                      selected: _selectedPaymentMethod == 1,
-                      onTap: () => setState(() => _selectedPaymentMethod = 1),
-                    ),
-                    SizedBox(height: 25),
-
-                    // Pay Now Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: MaterialButton(
-                        onPressed: _processPayment,
-                        color: kOrangeColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Text(
-                          'Pay GHS ${(doctor.consultationFee + 50).toStringAsFixed(0)}',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Consultation Details',
                           style: TextStyle(
-                            color: kWhiteColor,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ),
-                    SizedBox(height: 15),
-
-                    // Terms & Conditions
-                    Container(
-                      padding: EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: kBackgroundColor,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: kSearchBackgroundColor),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: kBlueColor),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'I agree to the terms & conditions and privacy policy',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 40,
+                              child: Icon(Icons.person),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    doctor.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    doctor.specialty,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _paymentMethodCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-    bool selected = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: kWhiteColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? kBlueColor : kSearchBackgroundColor,
-            width: selected ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 5,
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: kBlueColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: kBlueColor),
-            ),
-            SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: kTitleTextColor,
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          'Date',
+                          DateFormat('MMM d, yyyy').format(appointmentDate),
+                        ),
+                        _buildDetailRow('Time', appointmentTime),
+                        _buildDetailRow('Mode', consultationMode),
+                        _buildDetailRow('Language', preferredLanguage),
+                        _buildDetailRow('Reason', visitReason),
+                      ],
                     ),
                   ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Care Intake Summary',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (selectedSymptoms.isNotEmpty)
+                          _buildDetailRow(
+                            'Symptoms',
+                            selectedSymptoms.join(', '),
+                          ),
+                        if (symptomDescription.isNotEmpty)
+                          _buildDetailRow('Description', symptomDescription),
+                        if (careNotes.isNotEmpty)
+                          _buildDetailRow('Notes', careNotes),
+                        if (selectedSymptoms.isEmpty &&
+                            symptomDescription.isEmpty &&
+                            careNotes.isEmpty)
+                          const Text(
+                            'No additional patient notes were added for this local preview.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment Breakdown',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildPaymentRow(
+                          'Consultation Fee',
+                          'GHS ${consultationFee.toStringAsFixed(2)}',
+                          Colors.black,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPaymentRow(
+                          'Platform Commission',
+                          'GHS ${commissionAmount.toStringAsFixed(2)}',
+                          Colors.red,
+                        ),
+                        const Divider(height: 16),
+                        _buildPaymentRow(
+                          'Doctor Receives',
+                          'GHS ${doctorEarnings.toStringAsFixed(2)}',
+                          Colors.green,
+                          isBold: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isProcessing ? null : _completePayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kBlueColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Mark Payment Complete',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
-          ],
-        ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
 
-  void _processPayment() {
-    final user = authService.currentUser;
-    if (user == null) {
-      _showMessage('Please log in again before making a payment.');
-      return;
-    }
-
-    _pendingAppointmentId = 'apt_${DateTime.now().millisecondsSinceEpoch}';
-    setState(() => isProcessing = true);
-
-    paymentService.processPayment(
-      appointmentId: _pendingAppointmentId!,
-      doctorId: doctor.id,
-      userId: user.id,
-      amount: doctor.consultationFee + 50,
-      userEmail: user.email,
-      userName: user.fullName.trim(),
-    );
-  }
-
-  Future<void> _handlePaymentSuccess(dynamic payment) async {
-    setState(() => isProcessing = false);
-
-    final appointmentBooked = await controller.bookAppointment(
-      doctor.id,
-      appointmentDate,
-      appointmentTime,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    if (!appointmentBooked) {
-      _showMessage(
-        controller.errorMessage.value ??
-            'Payment was completed, but the appointment could not be created.',
-      );
-      return;
-    }
-
-    await notificationService.sendPaymentSuccess(
-      paymentId: payment.transactionId ??
-          'payment_${DateTime.now().millisecondsSinceEpoch}',
-      amount: doctor.consultationFee + 50,
-      appointmentId: _pendingAppointmentId ?? '',
-    );
-
-    _showSuccessDialog();
-  }
-
-  void _handlePaymentFailure(String error) {
-    setState(() => isProcessing = false);
-
-    notificationService.sendPaymentFailed(
-      paymentId: '',
-      reason: error,
-    );
-
-    _showMessage('Payment Failed: $error');
-  }
-
-  void _showSuccessDialog() {
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: kWhiteColor,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 50,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Payment Successful!',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: kTitleTextColor,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Your appointment with ${doctor.name} is confirmed',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: MaterialButton(
-                  onPressed: () {
-                    Get.offAllNamed('/home');
-                  },
-                  color: kOrangeColor,
-                  height: 50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Go to Home',
-                    style: TextStyle(
-                      color: kWhiteColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildPaymentRow(
+    String label,
+    String value,
+    Color color, {
+    bool isBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-      ),
-      barrierDismissible: false,
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ],
     );
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: kOrangeColor,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    paymentService.dispose();
-    super.dispose();
   }
 }

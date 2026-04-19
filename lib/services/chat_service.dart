@@ -1,47 +1,79 @@
 import 'package:doctor_consultation_app/models/chat_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
+  static final Map<String, Map<String, bool>> _typingStateByChat = {};
 
   factory ChatService() {
     return _instance;
   }
 
   ChatService._internal();
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Get all chats for the current user
   Future<List<ChatModel>> getChats(String userId) async {
-    try {
-      final data = await _supabase
-          .from('chat_sessions')
-          .select()
-          .eq('patient_id', userId)
-          .order('last_message_time', ascending: false);
-
-      return (data as List).map((json) => ChatModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching chats: $e');
-      return [];
-    }
+    final chats = _store.chats
+        .where((chat) => _store.chatPatientsById[chat.id] == userId)
+        .toList();
+    chats.sort(
+        (left, right) => right.lastMessageTime.compareTo(left.lastMessageTime));
+    return chats;
   }
 
   /// Get messages for a specific chat
   Future<List<MessageModel>> getMessages(String chatId) async {
-    try {
-      final data = await _supabase
-          .from('messages')
-          .select()
-          .eq('chat_id', chatId)
-          .order('timestamp', ascending: true);
+    final messages =
+        _store.messages.where((message) => message.chatId == chatId).toList();
+    messages.sort((left, right) => left.timestamp.compareTo(right.timestamp));
+    return messages;
+  }
 
-      return (data as List).map((json) => MessageModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching messages: $e');
-      return [];
+  ChatModel? _findChat(String chatId) {
+    try {
+      return _store.chats.firstWhere((chat) => chat.id == chatId);
+    } catch (_) {
+      return null;
     }
+  }
+
+  Future<void> setTypingStatus(
+    String chatId,
+    String userId,
+    bool isTyping,
+  ) async {
+    if (chatId.isEmpty || userId.isEmpty) {
+      return;
+    }
+    final currentChatMap = _typingStateByChat.putIfAbsent(chatId, () => {});
+    currentChatMap[userId] = isTyping;
+  }
+
+  Future<bool> getPeerTypingStatus(String chatId, String currentUserId) async {
+    if (chatId.isEmpty || currentUserId.isEmpty) {
+      return false;
+    }
+
+    final chat = _findChat(chatId);
+    if (chat == null) {
+      return false;
+    }
+
+    final patientId = _store.chatPatientsById[chatId];
+    if (patientId == null) {
+      return false;
+    }
+
+    final peerId = currentUserId == chat.doctorId ? patientId : chat.doctorId;
+    return _typingStateByChat[chatId]?[peerId] ?? false;
+  }
+
+  Future<void> clearTypingStatus(String chatId, String userId) async {
+    if (chatId.isEmpty || userId.isEmpty) {
+      return;
+    }
+    _typingStateByChat[chatId]?[userId] = false;
   }
 
   /// Send message
@@ -52,70 +84,61 @@ class ChatService {
     String userAvatar,
     String message,
   ) async {
-    try {
-      final msgJson = {
-        'chat_id': chatId,
-        'sender_id': userId,
-        'sender_name': userName,
-        'sender_avatar': userAvatar,
-        'message': message,
-        'is_doctor': false,
-        'is_read': false,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+    final sender = _store.findUserById(userId);
+    _store.messages.add(
+      MessageModel(
+        id: _store.nextId('message'),
+        chatId: chatId,
+        senderId: userId,
+        senderName: userName,
+        senderAvatar: userAvatar,
+        message: message,
+        isDoctor: sender?.isDoctor ?? false,
+        timestamp: DateTime.now(),
+        isRead: false,
+      ),
+    );
 
-      await _supabase.from('messages').insert(msgJson);
-
-      // Update last message in chat session
-      await _supabase.from('chat_sessions').update({
-        'last_message': message,
-        'last_message_time': DateTime.now().toIso8601String(),
-      }).eq('id', chatId);
-
-      return true;
-    } catch (e) {
-      print('Error sending message: $e');
-      return false;
+    final index = _store.chats.indexWhere((chat) => chat.id == chatId);
+    if (index != -1) {
+      final chat = _store.chats[index];
+      _store.chats[index] = chat.copyWith(
+        lastMessage: message,
+        lastMessageTime: DateTime.now(),
+        unreadCount: (sender?.isDoctor ?? false)
+            ? chat.unreadCount + 1
+            : chat.unreadCount,
+      );
     }
+
+    return true;
   }
 
   /// Mark messages as read
   Future<bool> markMessagesAsRead(String chatId) async {
-    try {
-      await _supabase
-          .from('messages')
-          .update({'is_read': true})
-          .eq('chat_id', chatId)
-          .eq('is_read', false);
-
-      await _supabase
-          .from('chat_sessions')
-          .update({'unread_count': 0}).eq('id', chatId);
-
-      return true;
-    } catch (e) {
-      print('Error marking messages as read: $e');
-      return false;
+    for (var index = 0; index < _store.messages.length; index += 1) {
+      final message = _store.messages[index];
+      if (message.chatId == chatId && !message.isRead) {
+        _store.messages[index] = message.copyWith(isRead: true);
+      }
     }
+
+    final chatIndex = _store.chats.indexWhere((chat) => chat.id == chatId);
+    if (chatIndex != -1) {
+      _store.chats[chatIndex] =
+          _store.chats[chatIndex].copyWith(unreadCount: 0);
+    }
+    return true;
   }
 
   /// Check if appointment is approved (REQUIRED for chat)
   Future<bool> canInitiateChat(String patientId, String doctorId) async {
-    try {
-      final approvedCount = await _supabase
-          .from('appointments')
-          .select()
-          .eq('user_id', patientId)
-          .eq('doctor_id', doctorId)
-          .eq('status', 'confirmed')
-          .count(CountOption.exact);
-
-      print('Approved appointments: ${approvedCount.count}');
-      return approvedCount.count > 0;
-    } catch (e) {
-      print('Error checking chat eligibility: $e');
-      return false;
-    }
+    return _store.appointments.any(
+      (appointment) =>
+          appointment.userId == patientId &&
+          appointment.doctorId == doctorId &&
+          appointment.status == 'confirmed',
+    );
   }
 
   /// Start new chat with doctor (only after appointment approval)
@@ -124,50 +147,34 @@ class ChatService {
     String doctorName,
     String doctorAvatar,
   ) async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return null;
+    final userId = _store.currentUserId;
+    if (userId == null) return null;
 
-      // CRITICAL: Check if user has approved appointment with this doctor
-      final canChat = await canInitiateChat(userId, doctorId);
-      if (!canChat) {
-        print('❌ Chat not allowed: No confirmed appointment found');
-        return null;
-      }
-
-      // Check if chat already exists
-      final existing = await _supabase
-          .from('chat_sessions')
-          .select()
-          .eq('patient_id', userId)
-          .eq('doctor_id', doctorId)
-          .maybeSingle();
-
-      if (existing != null) {
-        return ChatModel.fromJson(existing);
-      }
-
-      final chatJson = {
-        'doctor_id': doctorId,
-        'doctor_name': doctorName,
-        'doctor_avatar': doctorAvatar,
-        'patient_id': userId,
-        'last_message': 'Chat started after appointment approval',
-        'last_message_time': DateTime.now().toIso8601String(),
-        'unread_count': 0,
-        'is_active': true,
-      };
-
-      final data = await _supabase
-          .from('chat_sessions')
-          .insert(chatJson)
-          .select()
-          .single();
-
-      return ChatModel.fromJson(data);
-    } catch (e) {
-      print('Error starting chat: $e');
+    final canChat = await canInitiateChat(userId, doctorId);
+    if (!canChat) {
       return null;
+    }
+
+    try {
+      return _store.chats.firstWhere(
+        (chat) =>
+            _store.chatPatientsById[chat.id] == userId &&
+            chat.doctorId == doctorId,
+      );
+    } catch (_) {
+      final chat = ChatModel(
+        id: _store.nextId('chat'),
+        doctorId: doctorId,
+        doctorName: doctorName,
+        doctorAvatar: doctorAvatar,
+        lastMessage: 'Chat started after appointment approval',
+        lastMessageTime: DateTime.now(),
+        unreadCount: 0,
+        isActive: true,
+      );
+      _store.chats.add(chat);
+      _store.chatPatientsById[chat.id] = userId;
+      return chat;
     }
   }
 
@@ -179,157 +186,74 @@ class ChatService {
     String doctorAvatar,
   ) async {
     try {
-      // Check if chat already exists
-      final existing = await _supabase
-          .from('chat_sessions')
-          .select()
-          .eq('patient_id', patientId)
-          .eq('doctor_id', doctorId)
-          .maybeSingle();
-
-      if (existing != null) {
-        print('Chat already exists for this patient-doctor pair');
-        return ChatModel.fromJson(existing);
-      }
-
-      final chatJson = {
-        'doctor_id': doctorId,
-        'doctor_name': doctorName,
-        'doctor_avatar': doctorAvatar,
-        'patient_id': patientId,
-        'last_message': 'Appointment approved! Chat is now available.',
-        'last_message_time': DateTime.now().toIso8601String(),
-        'unread_count': 0,
-        'is_active': true,
-      };
-
-      final data = await _supabase
-          .from('chat_sessions')
-          .insert(chatJson)
-          .select()
-          .single();
-
-      print('✅ Chat automatically created for approved appointment');
-      return ChatModel.fromJson(data);
-    } catch (e) {
-      print('Error auto-creating chat: $e');
-      return null;
+      return _store.chats.firstWhere(
+        (chat) =>
+            _store.chatPatientsById[chat.id] == patientId &&
+            chat.doctorId == doctorId,
+      );
+    } catch (_) {
+      final chat = ChatModel(
+        id: _store.nextId('chat'),
+        doctorId: doctorId,
+        doctorName: doctorName,
+        doctorAvatar: doctorAvatar,
+        lastMessage: 'Appointment approved! Chat is now available.',
+        lastMessageTime: DateTime.now(),
+        unreadCount: 0,
+        isActive: true,
+      );
+      _store.chats.add(chat);
+      _store.chatPatientsById[chat.id] = patientId;
+      return chat;
     }
   }
 
   /// Search chats
   Future<List<ChatModel>> searchChats(String query) async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return [];
-
-      final data = await _supabase
-          .from('chat_sessions')
-          .select()
-          .eq('patient_id', userId)
-          .ilike('doctor_name', '%$query%');
-
-      return (data as List).map((json) => ChatModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error searching chats: $e');
-      return [];
-    }
+    final userId = _store.currentUserId;
+    if (userId == null) return [];
+    final normalizedQuery = query.toLowerCase();
+    return _store.chats.where((chat) {
+      return _store.chatPatientsById[chat.id] == userId &&
+          chat.doctorName.toLowerCase().contains(normalizedQuery);
+    }).toList();
   }
 
   /// Get unread count
   Future<int> getUnreadCount() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return 0;
-
-      final data = await _supabase
-          .from('chat_sessions')
-          .select('unread_count')
-          .eq('patient_id', userId);
-
-      int total = 0;
-      for (final row in data) {
-        total += (row['unread_count'] as int?) ?? 0;
-      }
-      return total;
-    } catch (e) {
-      return 0;
-    }
+    final userId = _store.currentUserId;
+    if (userId == null) return 0;
+    return _store.chats
+        .where((chat) => _store.chatPatientsById[chat.id] == userId)
+        .fold<int>(0, (sum, chat) => sum + chat.unreadCount);
   }
 
   /// Update user online status
   Future<bool> setUserPresence(String userId, bool isOnline) async {
-    try {
-      await _supabase
-          .from('profiles')
-          .update({'is_online': isOnline}).eq('id', userId);
-      print('User online status updated: $isOnline');
-      return true;
-    } catch (e) {
-      print('Error updating presence: $e');
-      return false;
-    }
+    final user = _store.findUserById(userId);
+    if (user == null) return false;
+    _store.saveUser(user.copyWith(isOnline: isOnline));
+    return true;
   }
 
   /// Get user online status
   Future<bool> getUserPresence(String userId) async {
-    try {
-      final data = await _supabase
-          .from('profiles')
-          .select('is_online')
-          .eq('id', userId)
-          .single();
-      return data['is_online'] ?? false;
-    } catch (e) {
-      print('Error getting user presence: $e');
-      return false;
-    }
+    return _store.findUserById(userId)?.isOnline ?? false;
   }
 
   /// Get unread chat count for doctor side
   Future<int> getUnreadCountForDoctor(String doctorId) async {
-    try {
-      final data = await _supabase
-          .from('chat_sessions')
-          .select('unread_count')
-          .eq('doctor_id', doctorId);
-
-      int total = 0;
-      for (final row in data) {
-        total += (row['unread_count'] as int?) ?? 0;
-      }
-      return total;
-    } catch (e) {
-      return 0;
-    }
+    return _store.chats
+        .where((chat) => chat.doctorId == doctorId)
+        .fold<int>(0, (sum, chat) => sum + chat.unreadCount);
   }
 
   /// Get all chats for doctor
   Future<List<ChatModel>> getChatsForDoctor(String doctorId) async {
-    try {
-      final data = await _supabase
-          .from('chat_sessions')
-          .select()
-          .eq('doctor_id', doctorId)
-          .order('last_message_time', ascending: false);
-
-      return (data as List).map((json) {
-        // Transform doctor-side chat format
-        return ChatModel(
-          id: json['id'] ?? '',
-          doctorId: json['doctor_id'] ?? '',
-          doctorName: json['doctor_name'] ?? '',
-          doctorAvatar: json['doctor_avatar'] ?? '',
-          lastMessage: json['last_message'] ?? '',
-          lastMessageTime: DateTime.parse(
-              json['last_message_time'] ?? DateTime.now().toIso8601String()),
-          unreadCount: json['unread_count'] ?? 0,
-          isActive: json['is_active'] ?? true,
-        );
-      }).toList();
-    } catch (e) {
-      print('Error fetching doctor chats: $e');
-      return [];
-    }
+    final chats =
+        _store.chats.where((chat) => chat.doctorId == doctorId).toList();
+    chats.sort(
+        (left, right) => right.lastMessageTime.compareTo(left.lastMessageTime));
+    return chats;
   }
 }

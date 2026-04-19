@@ -1,11 +1,23 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/prescription_controller.dart';
+import 'package:doctor_consultation_app/data/patient_ui_content.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-class PrescriptionsScreen extends StatelessWidget {
-  final controller = Get.find<PrescriptionController>();
+class PrescriptionsScreen extends StatefulWidget {
+  @override
+  State<PrescriptionsScreen> createState() => _PrescriptionsScreenState();
+}
+
+class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
+  late PrescriptionController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<PrescriptionController>();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +38,9 @@ class PrescriptionsScreen extends StatelessWidget {
           ),
           centerTitle: true,
           bottom: TabBar(
-            labelColor: kOrangeColor,
+            labelColor: kBlueColor,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: kOrangeColor,
+            indicatorColor: kBlueColor,
             tabs: [
               Tab(text: 'Active'),
               Tab(text: 'History'),
@@ -46,58 +58,108 @@ class PrescriptionsScreen extends StatelessWidget {
   }
 
   Widget _buildActiveTab() {
-    return Obx(
-      () {
-        if (controller.isLoading.value) {
-          return Center(
-            child: CircularProgressIndicator(color: kOrangeColor),
-          );
-        }
-
-        if (controller.activePrescriptions.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.description_outlined,
-                    size: 60, color: Colors.grey[300]),
-                SizedBox(height: 20),
-                Text('No active prescriptions'),
-              ],
-            ),
-          );
-        }
-
-        return ListView(
-          padding: EdgeInsets.all(16),
-          children: [
-            ...controller.activePrescriptions.map((prescription) {
-              return _buildPrescriptionCard(prescription, true);
-            }).toList(),
-          ],
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return Center(
+          child: CircularProgressIndicator(color: kBlueColor),
         );
-      },
-    );
+      }
+
+      if (controller.errorMessage.value != null) {
+        return _buildErrorState();
+      }
+
+      if (controller.activePrescriptions.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.description_outlined,
+                  size: 60, color: Colors.grey[300]),
+              SizedBox(height: 20),
+              Text('No active prescriptions'),
+            ],
+          ),
+        );
+      }
+
+      return ListView(
+        padding: EdgeInsets.all(16),
+        children: [
+          _buildPrescriptionOverview(
+            activeCount: controller.activePrescriptions.length,
+            completedCount: controller.completedPrescriptions.length,
+          ),
+          SizedBox(height: 16),
+          _buildDoseReminderCard(),
+          SizedBox(height: 16),
+          ...controller.activePrescriptions.map((prescription) {
+            return _buildPrescriptionCard(prescription, true);
+          }).toList(),
+        ],
+      );
+    });
   }
 
   Widget _buildHistoryTab() {
-    return Obx(
-      () {
-        if (controller.isLoading.value) {
-          return Center(
-            child: CircularProgressIndicator(color: kOrangeColor),
-          );
-        }
-
-        return ListView(
-          padding: EdgeInsets.all(16),
-          children: [
-            ...controller.completedPrescriptions.map((prescription) {
-              return _buildPrescriptionCard(prescription, false);
-            }).toList(),
-          ],
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return Center(
+          child: CircularProgressIndicator(color: kBlueColor),
         );
-      },
+      }
+
+      if (controller.errorMessage.value != null) {
+        return _buildErrorState();
+      }
+
+      return ListView(
+        padding: EdgeInsets.all(16),
+        children: [
+          _buildPharmacySupportCard(),
+          SizedBox(height: 16),
+          ...controller.completedPrescriptions.map((prescription) {
+            return _buildPrescriptionCard(prescription, false);
+          }).toList(),
+        ],
+      );
+    });
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 56, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to load prescriptions',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: kTitleTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              controller.errorMessage.value ?? 'Please try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                height: 1.45,
+                color: kTitleTextColor.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton(
+              onPressed: controller.fetchAllPrescriptions,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -124,9 +186,7 @@ class PrescriptionsScreen extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isActive
-                    ? kBlueColor.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
+                color: isActive ? kBlueColor : Color(0xff2E5ED2),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
@@ -141,7 +201,7 @@ class PrescriptionsScreen extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: kTitleTextColor,
+                            color: kWhiteColor,
                           ),
                         ),
                         SizedBox(height: 4),
@@ -150,7 +210,7 @@ class PrescriptionsScreen extends StatelessWidget {
                               .format(prescription.prescribedDate),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: kWhiteColor.withOpacity(0.85),
                           ),
                         ),
                       ],
@@ -159,16 +219,14 @@ class PrescriptionsScreen extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.2),
+                      color: isActive ? Colors.green : Color(0xff1F4FBF),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       isActive ? 'Active' : 'Completed',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isActive ? Colors.green : Colors.grey[600],
+                        color: kWhiteColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -212,9 +270,44 @@ class PrescriptionsScreen extends StatelessWidget {
                       ),
                     ),
                   SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  Text(
+                    prescription.notes,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: kTitleTextColor.withOpacity(0.6),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
                     children: [
+                      if (isActive)
+                        _buildActionButton(
+                          Icons.alarm_add_outlined,
+                          'Remind Me',
+                          () async {
+                            final medicines = prescription.medicines;
+                            if (medicines.isEmpty) {
+                              return;
+                            }
+                            final success =
+                                await controller.sendMedicineReminder(
+                              prescription,
+                              medicines.first,
+                            );
+                            if (success) {
+                              Get.snackbar(
+                                'Reminder Saved',
+                                'Dose reminder added to notifications.',
+                                snackPosition: SnackPosition.BOTTOM,
+                              );
+                            }
+                          },
+                        ),
                       _buildActionButton(
                         Icons.download,
                         'Download',
@@ -246,23 +339,159 @@ class PrescriptionsScreen extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: kBlueColor.withOpacity(0.1),
+          color: kBlueColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(icon, color: kBlueColor, size: 18),
+            Icon(icon, color: kWhiteColor, size: 18),
             SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: kBlueColor,
+                color: kWhiteColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionOverview({
+    required int activeCount,
+    required int completedCount,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xff3B6FEC), Color(0xff2E5ED2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildOverviewStat('$activeCount', 'Active')),
+          Expanded(child: _buildOverviewStat('$completedCount', 'Completed')),
+          Expanded(
+            child: _buildOverviewStat(
+              '${patientPharmacyServices.length}',
+              'Support',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewStat(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: kWhiteColor,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: kWhiteColor.withOpacity(0.88),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPharmacySupportCard() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xffEFF4FF),
+        border: Border.all(color: kBlueColor.withOpacity(0.22)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pharmacy Support',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: kTitleTextColor,
+            ),
+          ),
+          SizedBox(height: 10),
+          ...patientPharmacyServices.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.local_pharmacy_outlined,
+                      size: 16, color: kBlueColor),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(item)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDoseReminderCard() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xffEFF4FF),
+        border: Border.all(color: kBlueColor.withOpacity(0.22)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Dose Reminders',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: kTitleTextColor,
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Save local reminders for active medicines so they appear in your notifications inbox during the day.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.45,
+              color: kTitleTextColor.withOpacity(0.65),
+            ),
+          ),
+          SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.alarm_add_outlined, size: 16, color: kBlueColor),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tap Remind Me on any active prescription to store a dose reminder locally.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -302,7 +531,8 @@ class PrescriptionDetailScreen extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kWhiteColor,
+                color: Color(0xffEFF4FF),
+                border: Border.all(color: kBlueColor.withOpacity(0.22)),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -329,6 +559,23 @@ class PrescriptionDetailScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                       color: kTitleTextColor,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Prescription Notes',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    prescription.notes,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.45,
+                      color: kTitleTextColor.withOpacity(0.7),
                     ),
                   ),
                   SizedBox(height: 16),
@@ -374,17 +621,15 @@ class PrescriptionDetailScreen extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: prescription.isActive
-                                  ? Colors.green.withOpacity(0.2)
-                                  : Colors.grey.withOpacity(0.2),
+                                  ? Colors.green
+                                  : Color(0xff1F4FBF),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               prescription.isActive ? 'Active' : 'Completed',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: prescription.isActive
-                                    ? Colors.green
-                                    : Colors.grey[600],
+                                color: kWhiteColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -411,9 +656,9 @@ class PrescriptionDetailScreen extends StatelessWidget {
                 margin: EdgeInsets.only(bottom: 12),
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: kWhiteColor,
+                  color: Color(0xffF3F7FF),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kSearchBackgroundColor),
+                  border: Border.all(color: kBlueColor.withOpacity(0.22)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,15 +673,24 @@ class PrescriptionDetailScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Dosage: ${medicine.dosage}',
-                          style: TextStyle(fontSize: 13),
+                        Expanded(
+                          child: Text(
+                            'Dosage: ${medicine.dosage}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13),
+                          ),
                         ),
-                        Text(
-                          'Frequency: ${medicine.frequency}',
-                          style: TextStyle(fontSize: 13),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Frequency: ${medicine.frequency}',
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13),
+                          ),
                         ),
                       ],
                     ),
@@ -453,6 +707,43 @@ class PrescriptionDetailScreen extends StatelessWidget {
                         color: Colors.grey[600],
                       ),
                     ),
+                    Text(
+                      medicine.instructions,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: kTitleTextColor.withOpacity(0.65),
+                      ),
+                    ),
+                    if (prescription.isActive) ...[
+                      SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final success = await controller.sendMedicineReminder(
+                            prescription,
+                            medicine,
+                          );
+                          if (success) {
+                            Get.snackbar(
+                              'Reminder Saved',
+                              '${medicine.name} reminder added to notifications.',
+                              snackPosition: SnackPosition.BOTTOM,
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.alarm_add_outlined, size: 18),
+                        label: Text('Set Dose Reminder'),
+                      ),
+                    ],
+                    if (medicine.sideEffects.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      Text(
+                        'Possible side effects: ${medicine.sideEffects.join(', ')}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: kTitleTextColor.withOpacity(0.58),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -471,9 +762,9 @@ class PrescriptionDetailScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: kYellowColor.withOpacity(0.1),
+                  color: Color(0xffEAF1FF),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kYellowColor.withOpacity(0.3)),
+                  border: Border.all(color: kBlueColor.withOpacity(0.25)),
                 ),
                 child: Text(
                   prescription.notes,

@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class PrescriptionService {
   static final PrescriptionService _instance = PrescriptionService._internal();
@@ -9,163 +9,84 @@ class PrescriptionService {
   }
 
   PrescriptionService._internal();
-
-  final _supabase = Supabase.instance.client;
-
-  Future<PrescriptionModel> _loadWithMedicines(
-      Map<String, dynamic> json) async {
-    final prescriptionId = json['id'];
-    final medsData = await _supabase
-        .from('medicines')
-        .select()
-        .eq('prescription_id', prescriptionId);
-
-    final medicines =
-        (medsData as List).map((m) => Medicine.fromJson(m)).toList();
-    return PrescriptionModel.fromJson(json, medicines: medicines);
-  }
+  final _store = LocalBackendStore.instance;
 
   /// Get all prescriptions
   Future<List<PrescriptionModel>> getPrescriptions(String userId) async {
-    try {
-      final data = await _supabase
-          .from('prescriptions')
-          .select()
-          .eq('patient_id', userId)
-          .order('prescribed_date', ascending: false);
-
-      final List<PrescriptionModel> results = [];
-      for (final json in data) {
-        results.add(await _loadWithMedicines(json));
-      }
-      return results;
-    } catch (e) {
-      print('Error fetching prescriptions: $e');
-      return [];
-    }
+    final prescriptions = _store.prescriptions
+        .where((prescription) => prescription.patientId == userId)
+        .toList();
+    prescriptions.sort(
+      (left, right) => right.prescribedDate.compareTo(left.prescribedDate),
+    );
+    return prescriptions;
   }
 
   /// Get active prescriptions
   Future<List<PrescriptionModel>> getActivePrescriptions(String userId) async {
-    try {
-      final data = await _supabase
-          .from('prescriptions')
-          .select()
-          .eq('patient_id', userId)
-          .eq('status', 'active')
-          .order('prescribed_date', ascending: false);
-
-      final List<PrescriptionModel> results = [];
-      for (final json in data) {
-        results.add(await _loadWithMedicines(json));
-      }
-      return results;
-    } catch (e) {
-      print('Error fetching active prescriptions: $e');
-      return [];
-    }
+    return _store.prescriptions
+        .where((prescription) =>
+            prescription.patientId == userId && prescription.status == 'active')
+        .toList();
   }
 
   /// Get completed prescriptions
   Future<List<PrescriptionModel>> getCompletedPrescriptions(
       String userId) async {
-    try {
-      final data = await _supabase
-          .from('prescriptions')
-          .select()
-          .eq('patient_id', userId)
-          .eq('status', 'completed')
-          .order('prescribed_date', ascending: false);
-
-      final List<PrescriptionModel> results = [];
-      for (final json in data) {
-        results.add(await _loadWithMedicines(json));
-      }
-      return results;
-    } catch (e) {
-      print('Error fetching completed prescriptions: $e');
-      return [];
-    }
+    return _store.prescriptions
+        .where((prescription) =>
+            prescription.patientId == userId &&
+            prescription.status == 'completed')
+        .toList();
   }
 
   /// Get prescription details
   Future<PrescriptionModel?> getPrescriptionDetails(
       String prescriptionId) async {
     try {
-      final data = await _supabase
-          .from('prescriptions')
-          .select()
-          .eq('id', prescriptionId)
-          .maybeSingle();
-
-      if (data != null) {
-        return await _loadWithMedicines(data);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching prescription details: $e');
+      return _store.prescriptions.firstWhere(
+        (prescription) => prescription.id == prescriptionId,
+      );
+    } catch (_) {
       return null;
     }
   }
 
   /// Add prescription
   Future<bool> addPrescription(PrescriptionModel prescription) async {
-    try {
-      final json = prescription.toJson();
-      json.remove('id');
-      final medicines = json.remove('medicines') as List?;
-
-      final inserted =
-          await _supabase.from('prescriptions').insert(json).select().single();
-
-      final prescriptionId = inserted['id'];
-
-      if (medicines != null && medicines.isNotEmpty) {
-        final medsToInsert = prescription.medicines.map((m) {
-          final mJson = m.toJson();
-          mJson.remove('id');
-          mJson['prescription_id'] = prescriptionId;
-          return mJson;
-        }).toList();
-
-        await _supabase.from('medicines').insert(medsToInsert);
-      }
-
-      return true;
-    } catch (e) {
-      print('Error adding prescription: $e');
-      return false;
-    }
+    final normalized = prescription.id.isEmpty
+        ? prescription.copyWith(
+            id: _store.nextId('prescription'),
+            medicines: prescription.medicines
+                .map(
+                  (medicine) => medicine.copyWith(
+                    id: medicine.id.isEmpty
+                        ? _store.nextId('medicine')
+                        : medicine.id,
+                  ),
+                )
+                .toList(),
+          )
+        : prescription;
+    _store.prescriptions.add(normalized);
+    return true;
   }
 
   /// Update prescription
   Future<bool> updatePrescription(PrescriptionModel prescription) async {
-    try {
-      final json = prescription.toJson();
-      json.remove('id');
-      json.remove('medicines');
-
-      await _supabase
-          .from('prescriptions')
-          .update(json)
-          .eq('id', prescription.id);
-      return true;
-    } catch (e) {
-      print('Error updating prescription: $e');
-      return false;
-    }
+    final index = _store.prescriptions.indexWhere(
+      (item) => item.id == prescription.id,
+    );
+    if (index == -1) return false;
+    _store.prescriptions[index] = prescription;
+    return true;
   }
 
   /// Delete prescription
   Future<bool> deletePrescription(String prescriptionId) async {
-    try {
-      // Medicines deleted by cascade
-      await _supabase.from('prescriptions').delete().eq('id', prescriptionId);
-      return true;
-    } catch (e) {
-      print('Error deleting prescription: $e');
-      return false;
-    }
+    _store.prescriptions
+        .removeWhere((prescription) => prescription.id == prescriptionId);
+    return true;
   }
 
   /// Download prescription as PDF
@@ -185,18 +106,10 @@ class PrescriptionService {
   Future<PrescriptionModel?> getPrescriptionByAppointment(
       String appointmentId) async {
     try {
-      final data = await _supabase
-          .from('prescriptions')
-          .select()
-          .eq('appointment_id', appointmentId)
-          .maybeSingle();
-
-      if (data != null) {
-        return await _loadWithMedicines(data);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching prescription by appointment: $e');
+      return _store.prescriptions.firstWhere(
+        (prescription) => prescription.appointmentId == appointmentId,
+      );
+    } catch (_) {
       return null;
     }
   }

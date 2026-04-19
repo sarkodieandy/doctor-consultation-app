@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/consultation_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class ConsultationService {
   static final ConsultationService _instance = ConsultationService._internal();
@@ -9,158 +9,116 @@ class ConsultationService {
   }
 
   ConsultationService._internal();
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Get all consultations
   Future<List<ConsultationModel>> getConsultations(String userId) async {
-    try {
-      final data = await _supabase
-          .from('consultations')
-          .select()
-          .eq('user_id', userId)
-          .order('scheduled_time', ascending: false);
-
-      return (data as List)
-          .map((json) => ConsultationModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching consultations: $e');
-      return [];
-    }
+    final consultations = _store.consultations
+        .where((consultation) => consultation.userId == userId)
+        .toList();
+    consultations.sort(
+      (left, right) => right.scheduledTime.compareTo(left.scheduledTime),
+    );
+    return consultations;
   }
 
   /// Get upcoming consultations
   Future<List<ConsultationModel>> getUpcomingConsultations(
       String userId) async {
-    try {
-      final data = await _supabase
-          .from('consultations')
-          .select()
-          .eq('user_id', userId)
-          .eq('status', 'scheduled')
-          .gte('scheduled_time', DateTime.now().toIso8601String())
-          .order('scheduled_time', ascending: true);
-
-      return (data as List)
-          .map((json) => ConsultationModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching upcoming consultations: $e');
-      return [];
-    }
+    final now = DateTime.now();
+    final consultations = _store.consultations
+        .where(
+          (consultation) =>
+              consultation.userId == userId &&
+              consultation.status == 'scheduled' &&
+              consultation.scheduledTime.isAfter(now),
+        )
+        .toList();
+    consultations.sort(
+      (left, right) => left.scheduledTime.compareTo(right.scheduledTime),
+    );
+    return consultations;
   }
 
   /// Get completed consultations
   Future<List<ConsultationModel>> getCompletedConsultations(
       String userId) async {
-    try {
-      final data = await _supabase
-          .from('consultations')
-          .select()
-          .eq('user_id', userId)
-          .eq('status', 'completed')
-          .order('ended_at', ascending: false);
-
-      return (data as List)
-          .map((json) => ConsultationModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching completed consultations: $e');
-      return [];
-    }
+    final consultations = _store.consultations
+        .where((consultation) =>
+            consultation.userId == userId && consultation.status == 'completed')
+        .toList();
+    consultations.sort(
+      (left, right) => (right.endedAt ?? right.scheduledTime)
+          .compareTo(left.endedAt ?? left.scheduledTime),
+    );
+    return consultations;
   }
 
   /// Get consultation details
   Future<ConsultationModel?> getConsultationDetails(
       String consultationId) async {
     try {
-      final data = await _supabase
-          .from('consultations')
-          .select()
-          .eq('id', consultationId)
-          .maybeSingle();
-
-      if (data != null) {
-        return ConsultationModel.fromJson(data);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching consultation details: $e');
+      return _store.consultations.firstWhere(
+        (consultation) => consultation.id == consultationId,
+      );
+    } catch (_) {
       return null;
     }
   }
 
   /// Start consultation
   Future<bool> startConsultation(String consultationId) async {
-    try {
-      await _supabase.from('consultations').update({
-        'status': 'ongoing',
-        'started_at': DateTime.now().toIso8601String(),
-      }).eq('id', consultationId);
-      return true;
-    } catch (e) {
-      print('Error starting consultation: $e');
-      return false;
-    }
+    final index = _store.consultations.indexWhere(
+      (consultation) => consultation.id == consultationId,
+    );
+    if (index == -1) return false;
+    _store.consultations[index] = _store.consultations[index].copyWith(
+      status: 'ongoing',
+      startedAt: DateTime.now(),
+    );
+    return true;
   }
 
   /// End consultation
   Future<bool> endConsultation(String consultationId, String? summary) async {
-    try {
-      await _supabase.from('consultations').update({
-        'status': 'completed',
-        'ended_at': DateTime.now().toIso8601String(),
-        'summary': summary,
-      }).eq('id', consultationId);
-      return true;
-    } catch (e) {
-      print('Error ending consultation: $e');
-      return false;
-    }
+    final index = _store.consultations.indexWhere(
+      (consultation) => consultation.id == consultationId,
+    );
+    if (index == -1) return false;
+    _store.consultations[index] = _store.consultations[index].copyWith(
+      status: 'completed',
+      endedAt: DateTime.now(),
+      summary: summary,
+    );
+    return true;
   }
 
   /// Cancel consultation
   Future<bool> cancelConsultation(String consultationId) async {
-    try {
-      await _supabase
-          .from('consultations')
-          .update({'status': 'cancelled'}).eq('id', consultationId);
-      return true;
-    } catch (e) {
-      print('Error cancelling consultation: $e');
-      return false;
-    }
+    final index = _store.consultations.indexWhere(
+      (consultation) => consultation.id == consultationId,
+    );
+    if (index == -1) return false;
+    _store.consultations[index] =
+        _store.consultations[index].copyWith(status: 'cancelled');
+    return true;
   }
 
   /// Reschedule consultation
   Future<bool> rescheduleConsultation(
       String consultationId, DateTime newTime) async {
-    try {
-      await _supabase
-          .from('consultations')
-          .update({'scheduled_time': newTime.toIso8601String()}).eq(
-              'id', consultationId);
-      return true;
-    } catch (e) {
-      print('Error rescheduling consultation: $e');
-      return false;
-    }
+    final index = _store.consultations.indexWhere(
+      (consultation) => consultation.id == consultationId,
+    );
+    if (index == -1) return false;
+    _store.consultations[index] =
+        _store.consultations[index].copyWith(scheduledTime: newTime);
+    return true;
   }
 
   /// Get recording URL
   Future<String?> getRecordingUrl(String consultationId) async {
-    try {
-      final data = await _supabase
-          .from('consultations')
-          .select('recording_url')
-          .eq('id', consultationId)
-          .maybeSingle();
-
-      return data?['recording_url'];
-    } catch (e) {
-      return null;
-    }
+    return 'local-recording://$consultationId';
   }
 
   /// Download consultation recording
@@ -185,18 +143,10 @@ class ConsultationService {
   Future<ConsultationModel?> getConsultationByAppointment(
       String appointmentId) async {
     try {
-      final data = await _supabase
-          .from('consultations')
-          .select()
-          .eq('appointment_id', appointmentId)
-          .maybeSingle();
-
-      if (data != null) {
-        return ConsultationModel.fromJson(data);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching consultation by appointment: $e');
+      return _store.consultations.firstWhere(
+        (consultation) => consultation.appointmentId == appointmentId,
+      );
+    } catch (_) {
       return null;
     }
   }

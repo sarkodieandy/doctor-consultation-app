@@ -240,10 +240,16 @@ class AppointmentController extends GetxController {
     DateTime appointmentTime,
   ) async {
     try {
+      final userId = _userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
       await _notificationService.sendAppointmentReminder(
         appointmentId: appointmentId,
         doctorName: doctorName,
         appointmentTime: appointmentTime,
+        userId: userId,
       );
     } catch (e) {
       print('Notification error: $e');
@@ -257,10 +263,16 @@ class AppointmentController extends GetxController {
     DateTime appointmentTime,
   ) async {
     try {
+      final userId = _userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
       await _notificationService.sendAppointmentConfirmed(
         appointmentId: appointmentId,
         doctorName: doctorName,
         appointmentTime: appointmentTime,
+        userId: userId,
       );
     } catch (e) {
       print('Notification error: $e');
@@ -274,10 +286,16 @@ class AppointmentController extends GetxController {
     String appointmentId,
   ) async {
     try {
+      final userId = _userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
       await _notificationService.sendPaymentSuccess(
         paymentId: paymentId,
         amount: amount,
         appointmentId: appointmentId,
+        userId: userId,
       );
     } catch (e) {
       print('Notification error: $e');
@@ -290,9 +308,15 @@ class AppointmentController extends GetxController {
     String doctorName,
   ) async {
     try {
+      final userId = _userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
       await _notificationService.sendReviewRequest(
         appointmentId: appointmentId,
         doctorName: doctorName,
+        userId: userId,
       );
     } catch (e) {
       print('Notification error: $e');

@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/review_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class ReviewService {
   static final ReviewService _instance = ReviewService._internal();
@@ -9,38 +9,21 @@ class ReviewService {
   }
 
   ReviewService._internal();
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Get all reviews
   Future<List<ReviewModel>> getAllReviews() async {
-    try {
-      final data = await _supabase
-          .from('reviews')
-          .select()
-          .order('created_at', ascending: false);
-
-      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching reviews: $e');
-      return [];
-    }
+    final reviews = List<ReviewModel>.from(_store.reviews);
+    reviews.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return reviews;
   }
 
   /// Get reviews for a doctor
   Future<List<ReviewModel>> getDoctorReviews(String doctorId) async {
-    try {
-      final data = await _supabase
-          .from('reviews')
-          .select()
-          .eq('doctor_id', doctorId)
-          .order('created_at', ascending: false);
-
-      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching doctor reviews: $e');
-      return [];
-    }
+    final reviews =
+        _store.reviews.where((review) => review.doctorId == doctorId).toList();
+    reviews.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return reviews;
   }
 
   /// Get doctor review summary
@@ -95,94 +78,50 @@ class ReviewService {
 
   /// Get user reviews
   Future<List<ReviewModel>> getUserReviews(String userId) async {
-    try {
-      final data = await _supabase
-          .from('reviews')
-          .select()
-          .eq('patient_id', userId)
-          .order('created_at', ascending: false);
-
-      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching user reviews: $e');
-      return [];
-    }
+    final reviews =
+        _store.reviews.where((review) => review.patientId == userId).toList();
+    reviews.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return reviews;
   }
 
   /// Add review
   Future<bool> addReview(ReviewModel review) async {
-    try {
-      final json = review.toJson();
-      json.remove('id');
-      await _supabase.from('reviews').insert(json);
-      return true;
-    } catch (e) {
-      print('Error adding review: $e');
-      return false;
-    }
+    _store.reviews.add(review.id.isEmpty
+        ? review.copyWith(id: _store.nextId('review'))
+        : review);
+    return true;
   }
 
   /// Update review
   Future<bool> updateReview(ReviewModel review) async {
-    try {
-      final json = review.toJson();
-      json.remove('id');
-      await _supabase.from('reviews').update(json).eq('id', review.id);
-      return true;
-    } catch (e) {
-      print('Error updating review: $e');
-      return false;
-    }
+    final index = _store.reviews.indexWhere((item) => item.id == review.id);
+    if (index == -1) return false;
+    _store.reviews[index] = review;
+    return true;
   }
 
   /// Delete review
   Future<bool> deleteReview(String reviewId) async {
-    try {
-      await _supabase.from('reviews').delete().eq('id', reviewId);
-      return true;
-    } catch (e) {
-      print('Error deleting review: $e');
-      return false;
-    }
+    _store.reviews.removeWhere((review) => review.id == reviewId);
+    return true;
   }
 
   /// Mark review as helpful
   Future<bool> markHelpful(String reviewId) async {
-    try {
-      final data = await _supabase
-          .from('reviews')
-          .select('helpful_count')
-          .eq('id', reviewId)
-          .single();
-
-      final currentCount = data['helpful_count'] ?? 0;
-
-      await _supabase
-          .from('reviews')
-          .update({'helpful_count': currentCount + 1}).eq('id', reviewId);
-
-      return true;
-    } catch (e) {
-      print('Error marking helpful: $e');
-      return false;
-    }
+    final index = _store.reviews.indexWhere((review) => review.id == reviewId);
+    if (index == -1) return false;
+    final review = _store.reviews[index];
+    _store.reviews[index] =
+        review.copyWith(helpfulCount: review.helpfulCount + 1);
+    return true;
   }
 
   /// Get reviews by rating
   Future<List<ReviewModel>> getReviewsByRating(
       String doctorId, int rating) async {
-    try {
-      final data = await _supabase
-          .from('reviews')
-          .select()
-          .eq('doctor_id', doctorId)
-          .eq('rating', rating)
-          .order('created_at', ascending: false);
-
-      return (data as List).map((json) => ReviewModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching reviews by rating: $e');
-      return [];
-    }
+    return _store.reviews
+        .where((review) =>
+            review.doctorId == doctorId && review.rating.toInt() == rating)
+        .toList();
   }
 }

@@ -16,55 +16,118 @@ class CategoryCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 130,
-        height: 160,
-        child: Stack(
-          children: <Widget>[
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: isSelected
-                    ? BorderSide(color: _bgColor, width: 2)
-                    : BorderSide.none,
+        width: 156,
+        decoration: BoxDecoration(
+          color: kWhiteColor,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected
+                ? kBlueColor.withOpacity(0.35)
+                : kTitleTextColor.withOpacity(0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
               ),
-              elevation: isSelected ? 4 : 1,
-              child: Container(
-                width: 110,
-                height: 137,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Text(
+              child: Stack(
+                children: [
+                  _buildImage(),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.0),
+                            Colors.black.withOpacity(0.12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isSelected ? kBlueColor : _bgColor,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text(
+                      isSelected ? 'Selected' : 'Specialty',
+                      style: TextStyle(
+                        color: kWhiteColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
                     _title,
                     style: TextStyle(
                       color: kTitleTextColor,
                       fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                          isSelected ? FontWeight.bold : FontWeight.w600,
+                      height: 1.25,
                     ),
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 0,
-              child: Container(
-                height: 84,
-                width: 84,
-                decoration: BoxDecoration(
-                  color: _bgColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Image.asset(
-                  _imageUrl,
-                ),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (_imageUrl.startsWith('http://') || _imageUrl.startsWith('https://')) {
+      return Image.network(
+        _imageUrl,
+        width: double.infinity,
+        height: 104,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildFallbackImage();
+        },
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      height: 104,
+      color: _bgColor.withOpacity(0.12),
+      child: Image.asset(_imageUrl),
+    );
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      width: double.infinity,
+      height: 104,
+      color: _bgColor.withOpacity(0.12),
+      alignment: Alignment.center,
+      child: Icon(Icons.medical_services_outlined, color: _bgColor, size: 28),
     );
   }
 }

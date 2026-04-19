@@ -84,13 +84,15 @@ class _SidebarDrawerState extends State<SidebarDrawer>
                     children: [
                       // Header
                       _buildHeader(user),
-                      const Divider(height: 1),
                       // Menu Items
                       Expanded(
                         child: _buildMenuList(),
                       ),
                       // Footer
-                      const Divider(height: 1),
+                      Container(
+                        height: 1,
+                        color: kBlueColor.withOpacity(0.1),
+                      ),
                       _buildFooter(),
                     ],
                   ),
@@ -104,49 +106,109 @@ class _SidebarDrawerState extends State<SidebarDrawer>
   }
 
   Widget _buildHeader(dynamic user) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: kBlueColor,
-            child: Text(
-              user != null ? '${user.firstName[0]}${user.lastName[0]}' : 'U',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
+    final isDoctor = user?.role.toString() == 'UserRole.doctor';
+    final initials =
+        user != null ? '${user.firstName[0]}${user.lastName[0]}' : 'U';
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(opacity: value, child: child),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xff3B6FEC), Color(0xff2351C1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  user?.fullName ?? 'Guest',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: kTitleTextColor,
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 2,
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.email ?? '',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.fullName ?? 'Guest',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ?? '',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.75),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isDoctor
+                        ? Icons.medical_services_rounded
+                        : Icons.person_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    isDoctor ? 'Doctor' : 'Patient',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -189,47 +251,72 @@ class _SidebarDrawerState extends State<SidebarDrawer>
 
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 300 + (index * 60)),
+          duration: Duration(milliseconds: 250 + (index * 55)),
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             return Transform.translate(
-              offset: Offset(-30 * (1 - value), 0),
-              child: Opacity(
-                opacity: value,
-                child: child,
-              ),
+              offset: Offset(-28 * (1 - value), 0),
+              child: Opacity(opacity: value, child: child),
             );
           },
-          child: Material(
-            color: isCurrentRoute
-                ? kOrangeColor.withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
-            clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  item.icon,
-                  color: isCurrentRoute ? kOrangeColor : kTitleTextColor,
-                  size: 24,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            child: GestureDetector(
+              onTap: () async {
+                await _closeDrawer();
+                if (!isCurrentRoute) {
+                  Get.toNamed(item.route);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: isCurrentRoute ? kBlueColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                title: Text(
-                  item.label,
-                  style: TextStyle(
-                    fontWeight:
-                        isCurrentRoute ? FontWeight.bold : FontWeight.w500,
-                    color: isCurrentRoute ? kOrangeColor : kTitleTextColor,
-                    fontSize: 15,
-                  ),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: isCurrentRoute
+                            ? Colors.white.withOpacity(0.22)
+                            : kBlueColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        item.icon,
+                        color: isCurrentRoute ? Colors.white : kBlueColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        fontWeight:
+                            isCurrentRoute ? FontWeight.bold : FontWeight.w500,
+                        color: isCurrentRoute ? Colors.white : kTitleTextColor,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (isCurrentRoute) ...[
+                      const Spacer(),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                onTap: () async {
-                  await _closeDrawer();
-                  if (!isCurrentRoute) {
-                    Get.toNamed(item.route);
-                  }
-                },
               ),
             ),
           ),
@@ -247,32 +334,42 @@ class _SidebarDrawerState extends State<SidebarDrawer>
         return Opacity(opacity: value, child: child);
       },
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: MaterialButton(
-            onPressed: () async {
-              await _closeDrawer();
-              await _authService.logout();
-              Get.offAllNamed('/login');
-            },
-            color: kOrangeColor,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: GestureDetector(
+          onTap: () async {
+            await _closeDrawer();
+            await _authService.logout();
+            Get.offAllNamed('/login');
+          },
+          child: Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xffF45B5B), Color(0xffD94040)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xffF45B5B).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.logout_rounded, color: kWhiteColor, size: 22),
-                const SizedBox(width: 10),
+                Icon(Icons.logout_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
                 Text(
-                  'Logout',
+                  'Sign Out',
                   style: TextStyle(
-                    color: kWhiteColor,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 15,
                   ),
                 ),
               ],

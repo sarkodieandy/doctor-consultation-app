@@ -1,10 +1,13 @@
 import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
+import 'package:doctor_consultation_app/controllers/care_timeline_controller.dart';
 import 'package:doctor_consultation_app/controllers/chat_controller.dart';
 import 'package:doctor_consultation_app/controllers/consultation_controller.dart';
 import 'package:doctor_consultation_app/controllers/health_record_controller.dart';
+import 'package:doctor_consultation_app/controllers/notification_controller.dart';
 import 'package:doctor_consultation_app/controllers/prescription_controller.dart';
 import 'package:doctor_consultation_app/controllers/review_controller.dart';
 import 'package:doctor_consultation_app/screens/booking_screen.dart';
+import 'package:doctor_consultation_app/screens/care_timeline_screen.dart';
 import 'package:doctor_consultation_app/screens/chat_screen.dart';
 import 'package:doctor_consultation_app/screens/consultation_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_appointments_screen.dart';
@@ -18,6 +21,7 @@ import 'package:doctor_consultation_app/screens/home_screen.dart';
 import 'package:doctor_consultation_app/screens/login_screen.dart';
 import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
+import 'package:doctor_consultation_app/screens/notifications_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
@@ -27,7 +31,6 @@ import 'package:doctor_consultation_app/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 void ensureAppointmentController() {
   if (!Get.isRegistered<AppointmentController>()) {
@@ -37,12 +40,6 @@ void ensureAppointmentController() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Supabase.initialize(
-    url: 'https://ijmblflyhhuoftesjsmi.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqbWJsZmx5aGh1b2Z0ZXNqc21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODcxNzQsImV4cCI6MjA4NzA2MzE3NH0.jVu4mpsB3n4-iVHBE0ihrztXigQ5M3HTGhrMAoI87oU',
-  );
 
   final notificationService = NotificationService();
   await notificationService.initialize();
@@ -54,6 +51,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
+      defaultTransition: Transition.rightToLeftWithFade,
+      transitionDuration: const Duration(milliseconds: 280),
+      popGesture: true,
       theme: ThemeData(
         textTheme:
             GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
@@ -98,6 +98,26 @@ class MyApp extends StatelessWidget {
           name: '/profile',
           page: () => ProfileScreen(),
         ),
+        GetPage(
+          name: '/notifications',
+          page: () => NotificationsScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<NotificationController>()) {
+              Get.lazyPut<NotificationController>(
+                  () => NotificationController());
+            }
+          }),
+        ),
+        GetPage(
+          name: '/care-timeline',
+          page: () => CareTimelineScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<CareTimelineController>()) {
+              Get.lazyPut<CareTimelineController>(
+                  () => CareTimelineController());
+            }
+          }),
+        ),
         // Chat Routes
         GetPage(
           name: '/chat',
@@ -140,11 +160,23 @@ class MyApp extends StatelessWidget {
         ),
         GetPage(
           name: '/consultation-detail',
-          page: () => ConsultationScreen(),
+          page: () => ConsultationDetailScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<ConsultationController>()) {
+              Get.lazyPut<ConsultationController>(
+                  () => ConsultationController());
+            }
+          }),
         ),
         GetPage(
           name: '/video-consultation',
           page: () => VideoConsultationScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<ConsultationController>()) {
+              Get.lazyPut<ConsultationController>(
+                  () => ConsultationController());
+            }
+          }),
         ),
         // Reviews Routes
         GetPage(
@@ -181,6 +213,30 @@ class MyApp extends StatelessWidget {
         ),
         GetPage(
           name: '/doctor-profile-edit',
+          page: () => DoctorProfileEditScreen(),
+        ),
+        // Aliases used by doctor dashboard quick actions
+        GetPage(
+          name: '/doctor-chat',
+          page: () => ChatScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<ChatController>()) {
+              Get.lazyPut<ChatController>(() => ChatController());
+            }
+          }),
+        ),
+        GetPage(
+          name: '/doctor-prescriptions',
+          page: () => PrescriptionsScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<PrescriptionController>()) {
+              Get.lazyPut<PrescriptionController>(
+                  () => PrescriptionController());
+            }
+          }),
+        ),
+        GetPage(
+          name: '/doctor-profile',
           page: () => DoctorProfileEditScreen(),
         ),
       ],

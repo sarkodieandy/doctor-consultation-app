@@ -1,6 +1,6 @@
 import 'package:doctor_consultation_app/models/notification_model.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -13,8 +13,7 @@ class NotificationService {
   NotificationService._internal() {
     _notificationsPlugin = FlutterLocalNotificationsPlugin();
   }
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Initialize notifications
   Future<void> initialize() async {
@@ -35,16 +34,10 @@ class NotificationService {
     );
   }
 
-  /// Save notification to Supabase and show locally
+  /// Save notification locally and show in-app.
   Future<void> _saveAndShow(NotificationModel notification) async {
-    try {
-      final json = notification.toJson();
-      json.remove('id');
-      await _supabase.from('notifications').insert(json);
-    } catch (e) {
-      print('Error saving notification: $e');
-    }
-
+    _store.notifications.removeWhere((item) => item.id == notification.id);
+    _store.notifications.add(notification);
     await _showNotification(
       id: notification.id.hashCode,
       title: notification.title,
@@ -156,6 +149,34 @@ class NotificationService {
     await _saveAndShow(notification);
   }
 
+  Future<void> sendMedicationReminder({
+    required String prescriptionId,
+    required String medicineId,
+    required String medicineName,
+    required String dosage,
+    required String frequency,
+    String userId = '',
+  }) async {
+    final notification = NotificationModel(
+      id: 'medication_${prescriptionId}_$medicineId',
+      userId: userId,
+      title: 'Medication Reminder Saved',
+      message: 'Reminder added for $medicineName ($dosage, $frequency).',
+      type: 'medication',
+      relatedId: prescriptionId,
+      isRead: false,
+      createdAt: DateTime.now(),
+      metadata: {
+        'medicineId': medicineId,
+        'medicineName': medicineName,
+        'dosage': dosage,
+        'frequency': frequency,
+      },
+    );
+
+    await _saveAndShow(notification);
+  }
+
   /// Show local notification
   Future<void> _showNotification({
     required int id,
@@ -189,62 +210,45 @@ class NotificationService {
 
   /// Get all notifications
   Future<List<NotificationModel>> getNotifications(String userId) async {
-    try {
-      final data = await _supabase
-          .from('notifications')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      return (data as List)
-          .map((json) => NotificationModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching notifications: $e');
-      return [];
-    }
+    final notifications = _store.notifications
+        .where((notification) => notification.userId == userId)
+        .toList();
+    notifications
+        .sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return notifications;
   }
 
   /// Mark notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
-    try {
-      await _supabase.from('notifications').update({
-        'is_read': true,
-        'read_at': DateTime.now().toIso8601String(),
-      }).eq('id', notificationId);
-    } catch (e) {
-      print('Error marking notification as read: $e');
+    final index = _store.notifications.indexWhere(
+      (notification) => notification.id == notificationId,
+    );
+    if (index != -1) {
+      _store.notifications[index] = _store.notifications[index].copyWith(
+        isRead: true,
+        readAt: DateTime.now(),
+      );
     }
   }
 
   /// Mark all notifications as read
   Future<void> markAllAsRead(String userId) async {
-    try {
-      await _supabase
-          .from('notifications')
-          .update({
-            'is_read': true,
-            'read_at': DateTime.now().toIso8601String(),
-          })
-          .eq('user_id', userId)
-          .eq('is_read', false);
-    } catch (e) {
-      print('Error marking all notifications as read: $e');
+    for (var index = 0; index < _store.notifications.length; index += 1) {
+      final notification = _store.notifications[index];
+      if (notification.userId == userId && !notification.isRead) {
+        _store.notifications[index] = notification.copyWith(
+          isRead: true,
+          readAt: DateTime.now(),
+        );
+      }
     }
   }
 
   /// Get unread count
   Future<int> getUnreadCount(String userId) async {
-    try {
-      final data = await _supabase
-          .from('notifications')
-          .select()
-          .eq('user_id', userId)
-          .eq('is_read', false);
-
-      return (data as List).length;
-    } catch (e) {
-      return 0;
-    }
+    return _store.notifications
+        .where((notification) =>
+            notification.userId == userId && !notification.isRead)
+        .length;
   }
 }

@@ -83,16 +83,16 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        backgroundColor: kWhiteColor,
+        backgroundColor: kBlueColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
+          icon: Icon(Icons.arrow_back, color: kWhiteColor),
           onPressed: () => Get.back(),
         ),
         title: Text(
           'Edit Profile',
           style: TextStyle(
-            color: kTitleTextColor,
+            color: kWhiteColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -104,123 +104,146 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Profile Picture
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 55,
-                      backgroundColor: kBlueColor.withOpacity(0.1),
-                      child: Icon(Icons.person, size: 55, color: kBlueColor),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: kBlueColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.camera_alt,
-                            color: kWhiteColor, size: 18),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 22),
+                decoration: BoxDecoration(
+                  color: kBlueColor,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Center(
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 55,
+                        backgroundColor: kWhiteColor,
+                        child: Icon(Icons.person, size: 55, color: kBlueColor),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: kOrangeColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: kWhiteColor, width: 2),
+                          ),
+                          child: Icon(Icons.camera_alt,
+                              color: kWhiteColor, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               SizedBox(height: 30),
 
               // Personal Info Section
-              _buildSectionTitle('Personal Information'),
-              SizedBox(height: 16),
-              _buildField(
-                  'First Name', _firstNameController, Icons.person_outlined),
-              SizedBox(height: 14),
-              _buildField(
-                  'Last Name', _lastNameController, Icons.person_outlined),
-              SizedBox(height: 14),
-              _buildField(
-                  'Phone Number', _phoneController, Icons.phone_outlined,
-                  keyboardType: TextInputType.phone),
-              SizedBox(height: 24),
+              _buildSectionCard(
+                'Personal Information',
+                [
+                  _buildField('First Name', _firstNameController,
+                      Icons.person_outlined),
+                  SizedBox(height: 14),
+                  _buildField(
+                      'Last Name', _lastNameController, Icons.person_outlined),
+                  SizedBox(height: 14),
+                  _buildField(
+                      'Phone Number', _phoneController, Icons.phone_outlined,
+                      keyboardType: TextInputType.phone),
+                ],
+              ),
+              SizedBox(height: 18),
 
               // Professional Info Section
-              _buildSectionTitle('Professional Information'),
-              SizedBox(height: 16),
-
-              // Specialty Dropdown
-              Text(
-                'Specialty',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: kTitleTextColor.withOpacity(0.7),
-                ),
-              ),
-              SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: kSearchBackgroundColor,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: _specialties.contains(_selectedSpecialty)
-                      ? _selectedSpecialty
-                      : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide.none,
+              _buildSectionCard(
+                'Professional Information',
+                [
+                  Text(
+                    'Specialty',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: kTitleTextColor,
                     ),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   ),
-                  items: _specialties.map((s) {
-                    return DropdownMenuItem(value: s, child: Text(s));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSpecialty = value ?? '';
-                    });
-                  },
-                ),
-              ),
-              SizedBox(height: 14),
-              _buildField('Years of Experience', _experienceController,
-                  Icons.work_outlined),
-              SizedBox(height: 14),
-              _buildField(
-                  'Consultation Fee (GHS)', _feeController, Icons.attach_money,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true)),
-              SizedBox(height: 14),
-
-              // Bio
-              Text(
-                'Bio',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: kTitleTextColor.withOpacity(0.7),
-                ),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                controller: _bioController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Tell patients about yourself...',
-                  hintStyle: TextStyle(color: kSearchTextColor),
-                  filled: true,
-                  fillColor: kSearchBackgroundColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: kWhiteColor,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: kBlueColor.withOpacity(0.25)),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _specialties.contains(_selectedSpecialty)
+                          ? _selectedSpecialty
+                          : null,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      ),
+                      items: _specialties.map((s) {
+                        return DropdownMenuItem(value: s, child: Text(s));
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedSpecialty = value ?? '';
+                        });
+                      },
+                    ),
                   ),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                ),
+                  SizedBox(height: 14),
+                  _buildField('Years of Experience', _experienceController,
+                      Icons.work_outlined),
+                  SizedBox(height: 14),
+                  _buildField('Consultation Fee (GHS)', _feeController,
+                      Icons.attach_money,
+                      keyboardType:
+                          TextInputType.numberWithOptions(decimal: true)),
+                  SizedBox(height: 14),
+                  Text(
+                    'Bio',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: kTitleTextColor,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  TextField(
+                    controller: _bioController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Tell patients about yourself...',
+                      hintStyle: TextStyle(color: kSearchTextColor),
+                      filled: true,
+                      fillColor: kWhiteColor,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide:
+                            BorderSide(color: kBlueColor.withOpacity(0.25)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(color: kBlueColor, width: 1.8),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide:
+                            BorderSide(color: kBlueColor.withOpacity(0.25)),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 30),
+              SizedBox(height: 24),
 
               // Save Button
               SizedBox(
@@ -286,6 +309,26 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
     );
   }
 
+  Widget _buildSectionCard(String title, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: kBlueColor.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(title),
+          SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -308,7 +351,7 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: kTitleTextColor.withOpacity(0.7),
+            color: kTitleTextColor,
           ),
         ),
         SizedBox(height: 8),
@@ -318,10 +361,18 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
           decoration: InputDecoration(
             hintStyle: TextStyle(color: kSearchTextColor),
             filled: true,
-            fillColor: kSearchBackgroundColor,
+            fillColor: kWhiteColor,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(color: kBlueColor.withOpacity(0.25)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(color: kBlueColor, width: 1.8),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(color: kBlueColor.withOpacity(0.25)),
             ),
             contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             prefixIcon: Padding(

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-var kBackgroundColor = Color(0xffF9F9F9);
-var kWhiteColor = Color(0xffffffff);
+var kBackgroundColor = Color(0xffEAF1FF);
+var kWhiteColor = Color(0xffF3F7FF);
 var kOrangeColor = Color(0xffEF716B);
 var kBlueColor = Color(0xff4B7FFB);
 var kYellowColor = Color(0xffFFB167);
 var kTitleTextColor = Color(0xff1E1C61);
-var kSearchBackgroundColor = Color(0xffF2F2F2);
-var kSearchTextColor = Color(0xffC0C0C0);
+var kSearchBackgroundColor = Color(0xffDCE7FF);
+var kSearchTextColor = Color(0xff7C8ABB);
 var kCategoryTextColor = Color(0xff292685);

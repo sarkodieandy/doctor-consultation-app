@@ -1,220 +1,332 @@
-import 'package:doctor_consultation_app/components/schedule_card.dart';
 import 'package:doctor_consultation_app/constant.dart';
+import 'package:doctor_consultation_app/data/patient_ui_content.dart';
+import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 
 class DetailScreen extends StatelessWidget {
-  final String _name;
-  final String _description;
-  final String _imageUrl;
+  final DoctorModel doctor;
 
-  DetailScreen(this._name, this._description, this._imageUrl);
+  const DetailScreen({Key? key, required this.doctor}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final meta = patientDoctorMetaFor(doctor);
+
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/detail_illustration.png'),
-              alignment: Alignment.topCenter,
-              fit: BoxFit.fitWidth,
-            ),
+      backgroundColor: kBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kBackgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: kTitleTextColor),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(
+          'Doctor Profile',
+          style: TextStyle(
+            color: kTitleTextColor,
+            fontWeight: FontWeight.bold,
           ),
-          child: Column(
-            children: <Widget>[
-              SizedBox(
-                height: 50,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 30,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                      child: SvgPicture.asset(
-                        'assets/icons/back.svg',
-                        height: 18,
-                      ),
-                    ),
-                    SvgPicture.asset(
-                      'assets/icons/3dots.svg',
-                      height: 18,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.24,
-              ),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: kBackgroundColor,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(50),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: kWhiteColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
                   ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(30),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Image.asset(
-                            _imageUrl,
-                            height: 120,
+                ],
+              ),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 46,
+                    backgroundImage: doctor.imageProvider,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    doctor.name,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: kTitleTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${doctor.specialty} • ${meta.city}, ${meta.region}',
+                    style: TextStyle(
+                      color: kBlueColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: meta.trustBadges
+                        .map(
+                          (badge) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: kBlueColor.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: kBlueColor,
+                              ),
+                            ),
                           ),
-                          SizedBox(
-                            width: 20,
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                _name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  color: kTitleTextColor,
-                                ),
-                              ),
-                              SizedBox(
-                                height: 10,
-                              ),
-                              Text(
-                                _description,
-                                style: TextStyle(
-                                  color: kTitleTextColor.withOpacity(0.7),
-                                ),
-                              ),
-                              SizedBox(
-                                height: 10,
-                              ),
-                              Row(
-                                children: <Widget>[
-                                  Container(
-                                    padding: EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: kBlueColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: SvgPicture.asset(
-                                      'assets/icons/phone.svg',
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 16,
-                                  ),
-                                  Container(
-                                    padding: EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: kYellowColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: SvgPicture.asset(
-                                      'assets/icons/chat.svg',
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 16,
-                                  ),
-                                  Container(
-                                    padding: EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: kOrangeColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: SvgPicture.asset(
-                                      'assets/icons/video.svg',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                      SizedBox(
-                        height: 50,
-                      ),
-                      Text(
-                        'About Doctor',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: kTitleTextColor,
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          Icons.star,
+                          '${doctor.rating}',
+                          'Rating',
+                          kYellowColor,
                         ),
                       ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        'Dr. Stella is the top most heart surgeon in Flower\nHospital. She has done over 100 successful sugeries\nwithin past 3 years. She has achieved several\nawards for her wonderful contribution in her own\nfield. She’s available for private consultation for\ngiven schedules.',
-                        style: TextStyle(
-                          height: 1.6,
-                          color: kTitleTextColor.withOpacity(0.7),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          Icons.work_outline,
+                          doctor.experience,
+                          'Experience',
+                          kBlueColor,
                         ),
                       ),
-                      SizedBox(
-                        height: 20,
-                      ),
-                      Text(
-                        'Upcoming Schedules',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: kTitleTextColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          Icons.payments_outlined,
+                          'GHS ${doctor.consultationFee.toStringAsFixed(0)}',
+                          'Fee',
+                          kOrangeColor,
                         ),
-                      ),
-                      SizedBox(
-                        height: 20,
-                      ),
-                      ScheduleCard(
-                        'Consultation',
-                        'Sunday . 9am - 11am',
-                        '12',
-                        'Jan',
-                        kBlueColor,
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      ScheduleCard(
-                        'Consultation',
-                        'Sunday . 9am - 11am',
-                        '13',
-                        'Jan',
-                        kYellowColor,
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      ScheduleCard(
-                        'Consultation',
-                        'Sunday . 9am - 11am',
-                        '14',
-                        'Jan',
-                        kOrangeColor,
-                      ),
-                      SizedBox(
-                        height: 20,
                       ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildSectionCard(
+              'About Doctor',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    doctor.description,
+                    style: TextStyle(
+                      height: 1.6,
+                      color: kTitleTextColor.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildInfoRow(Icons.local_hospital_outlined, doctor.hospital),
+                  _buildInfoRow(Icons.access_time, meta.nextAvailable),
+                  _buildInfoRow(Icons.chat_outlined, meta.responseTime),
+                  _buildInfoRow(Icons.translate, meta.languages.join(' • ')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSectionCard(
+              'Care Focus',
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: meta.focusAreas
+                    .map(
+                      (area) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: kBackgroundColor,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          area,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: kTitleTextColor,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSectionCard(
+              'Consultation Options',
+              Column(
+                children: meta.consultationModes
+                    .map(
+                      (mode) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: kOrangeColor.withOpacity(0.12),
+                              child: Icon(
+                                mode == 'Video'
+                                    ? Icons.videocam_outlined
+                                    : mode == 'Voice'
+                                        ? Icons.call_outlined
+                                        : Icons.chat_bubble_outline,
+                                size: 16,
+                                color: kOrangeColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '$mode consultation available for follow-up and routine check-ins.',
+                                style: TextStyle(
+                                  color: kTitleTextColor.withOpacity(0.72),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Get.toNamed('/booking', arguments: doctor),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kOrangeColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-              )
-            ],
-          ),
+                child: Text(
+                  'Book Appointment',
+                  style: TextStyle(
+                    color: kWhiteColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(String title, Widget child) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: kTitleTextColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: kTitleTextColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: kTitleTextColor.withOpacity(0.55),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: kBlueColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: kTitleTextColor.withOpacity(0.72),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

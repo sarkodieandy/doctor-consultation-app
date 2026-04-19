@@ -1,6 +1,6 @@
 import 'package:doctor_consultation_app/models/appointment_model.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -11,66 +11,37 @@ class ApiService {
 
   ApiService._internal();
 
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Get all doctors
   Future<List<DoctorModel>> getDoctors() async {
-    try {
-      final data = await _supabase
-          .from('doctors')
-          .select()
-          .eq('available', true)
-          .order('rating', ascending: false);
-
-      return (data as List).map((json) => DoctorModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching doctors: $e');
-      rethrow;
-    }
+    final doctors = _store.doctors.where((doctor) => doctor.available).toList();
+    doctors.sort((left, right) => right.rating.compareTo(left.rating));
+    return doctors;
   }
 
   /// Get doctor by ID
   Future<DoctorModel?> getDoctorById(String id) async {
-    try {
-      final data =
-          await _supabase.from('doctors').select().eq('id', id).maybeSingle();
-
-      if (data != null) {
-        return DoctorModel.fromJson(data);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching doctor: $e');
-      return null;
-    }
+    return _store.findDoctorById(id);
   }
 
   /// Get doctors by specialty
   Future<List<DoctorModel>> getDoctorsBySpecialty(String specialty) async {
-    try {
-      final data = await _supabase
-          .from('doctors')
-          .select()
-          .ilike('specialty', '%$specialty%');
-
-      return (data as List).map((json) => DoctorModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching doctors by specialty: $e');
-      rethrow;
-    }
+    final query = specialty.toLowerCase();
+    return _store.doctors
+        .where((doctor) => doctor.specialty.toLowerCase().contains(query))
+        .toList();
   }
 
   /// Search doctors
   Future<List<DoctorModel>> searchDoctors(String query) async {
-    try {
-      final data = await _supabase.from('doctors').select().or(
-          'name.ilike.%$query%,specialty.ilike.%$query%,hospital.ilike.%$query%');
-
-      return (data as List).map((json) => DoctorModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error searching doctors: $e');
-      rethrow;
-    }
+    final queryLower = query.toLowerCase();
+    return _store.doctors.where((doctor) {
+      return doctor.available &&
+          (doctor.name.toLowerCase().contains(queryLower) ||
+              doctor.specialty.toLowerCase().contains(queryLower) ||
+              doctor.hospital.toLowerCase().contains(queryLower));
+    }).toList();
   }
 
   /// Book appointment
@@ -80,14 +51,14 @@ class ApiService {
     DateTime appointmentDate,
     String timeSlot,
   ) async {
-    try {
-      final doctor = await getDoctorById(doctorId);
-      if (doctor == null) {
-        throw 'Doctor not found';
-      }
+    final doctor = await getDoctorById(doctorId);
+    if (doctor == null) {
+      throw 'Doctor not found';
+    }
 
-      final appointment = AppointmentModel(
-        id: '',
+    _store.appointments.add(
+      AppointmentModel(
+        id: _store.nextId('appointment'),
         userId: userId,
         doctorId: doctorId,
         doctorName: doctor.name,
@@ -98,71 +69,49 @@ class ApiService {
         consultationFee: doctor.consultationFee,
         status: 'confirmed',
         createdAt: DateTime.now(),
-      );
-
-      final json = appointment.toJson();
-      json.remove('id'); // Let Supabase generate UUID
-
-      await _supabase.from('appointments').insert(json);
-      return true;
-    } catch (e) {
-      print('Error booking appointment: $e');
-      rethrow;
-    }
+      ),
+    );
+    return true;
   }
 
   /// Get user appointments
   Future<List<AppointmentModel>> getUserAppointments(String userId) async {
-    try {
-      final data = await _supabase
-          .from('appointments')
-          .select()
-          .eq('user_id', userId)
-          .order('appointment_date', ascending: false);
-
-      return (data as List)
-          .map((json) => AppointmentModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching appointments: $e');
-      rethrow;
-    }
+    final appointments = _store.appointments
+        .where((appointment) => appointment.userId == userId)
+        .toList();
+    appointments.sort(
+      (left, right) => right.appointmentDate.compareTo(left.appointmentDate),
+    );
+    return appointments;
   }
 
   /// Get upcoming appointments
   Future<List<AppointmentModel>> getUpcomingAppointments(String userId) async {
-    try {
-      final data = await _supabase
-          .from('appointments')
-          .select()
-          .eq('user_id', userId)
-          .eq('status', 'confirmed')
-          .gte('appointment_date', DateTime.now().toIso8601String())
-          .order('appointment_date', ascending: true);
-
-      return (data as List)
-          .map((json) => AppointmentModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      print('Error fetching upcoming appointments: $e');
-      rethrow;
-    }
+    final now = DateTime.now();
+    final appointments = _store.appointments
+        .where(
+          (appointment) =>
+              appointment.userId == userId &&
+              appointment.status == 'confirmed' &&
+              appointment.appointmentDate.isAfter(now),
+        )
+        .toList();
+    appointments.sort(
+      (left, right) => left.appointmentDate.compareTo(right.appointmentDate),
+    );
+    return appointments;
   }
 
   /// Cancel appointment
   Future<bool> cancelAppointment(String appointmentId, String userId) async {
-    try {
-      await _supabase
-          .from('appointments')
-          .update({'status': 'cancelled'})
-          .eq('id', appointmentId)
-          .eq('user_id', userId);
-
-      return true;
-    } catch (e) {
-      print('Error cancelling appointment: $e');
-      rethrow;
-    }
+    final index = _store.appointments.indexWhere(
+      (appointment) =>
+          appointment.id == appointmentId && appointment.userId == userId,
+    );
+    if (index == -1) return false;
+    _store.appointments[index] =
+        _store.appointments[index].copyWith(status: 'cancelled');
+    return true;
   }
 
   /// Add review to appointment
@@ -172,18 +121,15 @@ class ApiService {
     double rating,
     String review,
   ) async {
-    try {
-      await _supabase
-          .from('appointments')
-          .update({'rating': rating, 'review': review})
-          .eq('id', appointmentId)
-          .eq('user_id', userId);
-
-      return true;
-    } catch (e) {
-      print('Error adding review: $e');
-      rethrow;
-    }
+    final index = _store.appointments.indexWhere(
+      (appointment) =>
+          appointment.id == appointmentId && appointment.userId == userId,
+    );
+    if (index == -1) return false;
+    final current = _store.appointments[index];
+    _store.appointments[index] =
+        current.copyWith(rating: rating, review: review);
+    return true;
   }
 
   /// Approve appointment (by doctor)
@@ -191,17 +137,13 @@ class ApiService {
     String appointmentId,
     String doctorId,
   ) async {
-    try {
-      await _supabase
-          .from('appointments')
-          .update({'status': 'confirmed'})
-          .eq('id', appointmentId)
-          .eq('doctor_id', doctorId);
-
-      return true;
-    } catch (e) {
-      print('Error approving appointment: $e');
-      rethrow;
-    }
+    final index = _store.appointments.indexWhere(
+      (appointment) =>
+          appointment.id == appointmentId && appointment.doctorId == doctorId,
+    );
+    if (index == -1) return false;
+    _store.appointments[index] =
+        _store.appointments[index].copyWith(status: 'confirmed');
+    return true;
   }
 }

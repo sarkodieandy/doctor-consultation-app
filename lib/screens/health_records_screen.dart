@@ -1,11 +1,23 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/health_record_controller.dart';
+import 'package:doctor_consultation_app/data/patient_ui_content.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-class HealthRecordsScreen extends StatelessWidget {
-  final controller = Get.find<HealthRecordController>();
+class HealthRecordsScreen extends StatefulWidget {
+  @override
+  State<HealthRecordsScreen> createState() => _HealthRecordsScreenState();
+}
+
+class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
+  late HealthRecordController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<HealthRecordController>();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +50,7 @@ class HealthRecordsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildVitalsTab(),
+            _buildVitalsTab(context),
             _buildLabReportsTab(),
             _buildAllergiesTab(),
           ],
@@ -47,7 +59,7 @@ class HealthRecordsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVitalsTab() {
+  Widget _buildVitalsTab(BuildContext context) {
     return Obx(
       () {
         if (controller.isLoading.value) {
@@ -56,10 +68,17 @@ class HealthRecordsScreen extends StatelessWidget {
           );
         }
 
+        if (controller.errorMessage.value != null) {
+          return _buildErrorState();
+        }
+
         return ListView(
           padding: EdgeInsets.all(16),
           children: [
-            // Latest vitals summary
+            _buildRecordsOverview(),
+            SizedBox(height: 16),
+            _buildHealthVaultCard(),
+            SizedBox(height: 16),
             Obx(
               () {
                 final vitals = controller.latestVitals;
@@ -93,6 +112,32 @@ class HealthRecordsScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kWhiteColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: patientConsultationPrepItems
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.folder_open_outlined,
+                                size: 16, color: kBlueColor),
+                            SizedBox(width: 8),
+                            Expanded(child: Text(item)),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            SizedBox(height: 16),
             ...controller.vitalSigns.map((vital) {
               return _buildRecordCard(vital);
             }).toList(),
@@ -114,6 +159,13 @@ class HealthRecordsScreen extends StatelessWidget {
         return ListView(
           padding: EdgeInsets.all(16),
           children: [
+            _buildHealthVaultCard(),
+            SizedBox(height: 16),
+            _buildSectionInfo(
+              'Lab reports stay ready for future visits',
+              'Upload placeholders are local-only for now, but the screen already supports a structured patient record vault.',
+            ),
+            SizedBox(height: 16),
             ...controller.labReports.map((report) {
               return _buildRecordCard(report);
             }).toList(),
@@ -135,6 +187,13 @@ class HealthRecordsScreen extends StatelessWidget {
         return ListView(
           padding: EdgeInsets.all(16),
           children: [
+            _buildHealthVaultCard(),
+            SizedBox(height: 16),
+            _buildSectionInfo(
+              'Allergy reminders',
+              'Keep severe reactions visible so every future consultation starts with the right safety context.',
+            ),
+            SizedBox(height: 16),
             ...controller.allergies.map((allergy) {
               return Container(
                 margin: EdgeInsets.only(bottom: 12),
@@ -186,6 +245,59 @@ class HealthRecordsScreen extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildHealthVaultCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff3B6FEC), Color(0xff2E5ED2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.folder_special_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Health Vault',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Keep your vitals, reports, and allergy records up to date for every visit.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -266,7 +378,7 @@ class HealthRecordsScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: kBlueColor,
+                  color: patientStatusColor(record.status),
                 ),
               ),
             ],
@@ -287,6 +399,141 @@ class HealthRecordsScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey[500],
+            ),
+          ),
+          if (record.notes != null && record.notes!.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Text(
+              record.notes!,
+              style: TextStyle(
+                fontSize: 12,
+                color: kTitleTextColor.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 56, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to load health records',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: kTitleTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              controller.errorMessage.value ?? 'Please try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                height: 1.45,
+                color: kTitleTextColor.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton(
+              onPressed: controller.fetchAllRecords,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordsOverview() {
+    final abnormalCount =
+        controller.allRecords.where((record) => record.isAbnormal).length;
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildOverviewColumn(
+              '${controller.allRecords.length}',
+              'Records',
+            ),
+          ),
+          Expanded(
+            child: _buildOverviewColumn(
+              '${controller.labReports.length}',
+              'Reports',
+            ),
+          ),
+          Expanded(
+            child: _buildOverviewColumn(
+              '$abnormalCount',
+              'Watchlist',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewColumn(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: kBlueColor,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: kTitleTextColor.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionInfo(String title, String subtitle) {
+    return Container(
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kWhiteColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: kTitleTextColor,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(
+              height: 1.4,
+              color: kTitleTextColor.withOpacity(0.62),
             ),
           ),
         ],

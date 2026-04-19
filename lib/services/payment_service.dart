@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/payment_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:doctor_consultation_app/services/local_backend_store.dart';
 
 class PaymentService {
   static final PaymentService _instance = PaymentService._internal();
@@ -12,8 +12,7 @@ class PaymentService {
   }
 
   PaymentService._internal();
-
-  final _supabase = Supabase.instance.client;
+  final _store = LocalBackendStore.instance;
 
   /// Initialize payment callbacks (UI-only, Paystack integration later)
   void initializePayment({
@@ -34,59 +33,43 @@ class PaymentService {
     required String userName,
   }) async {
     try {
-      final paymentJson = {
-        'appointment_id': appointmentId,
-        'doctor_id': doctorId,
-        'user_id': userId,
-        'amount': amount,
-        'status': 'completed',
-        'payment_method': 'paystack',
-        'transaction_id': 'txn_${DateTime.now().millisecondsSinceEpoch}',
-        'created_at': DateTime.now().toIso8601String(),
-        'completed_at': DateTime.now().toIso8601String(),
-      };
+      final payment = PaymentModel(
+        id: _store.nextId('payment'),
+        appointmentId: appointmentId,
+        doctorId: doctorId,
+        userId: userId,
+        amount: amount,
+        status: 'completed',
+        paymentMethod: 'local_preview',
+        transactionId: 'txn_${DateTime.now().millisecondsSinceEpoch}',
+        createdAt: DateTime.now(),
+        completedAt: DateTime.now(),
+      );
 
-      final data = await _supabase
-          .from('payments')
-          .insert(paymentJson)
-          .select()
-          .single();
-
-      final payment = PaymentModel.fromJson(data);
+      _store.payments.add(payment);
       _onSuccess?.call(payment);
-    } catch (e) {
-      _onFailure?.call(e.toString());
+    } catch (error) {
+      _onFailure?.call(error.toString());
     }
   }
 
   /// Process refund
   Future<bool> refundPayment(String transactionId, double amount) async {
-    try {
-      await _supabase
-          .from('payments')
-          .update({'status': 'refunded'}).eq('transaction_id', transactionId);
-
-      return true;
-    } catch (e) {
-      print('Refund error: $e');
-      return false;
-    }
+    final index = _store.payments.indexWhere(
+      (payment) => payment.transactionId == transactionId,
+    );
+    if (index == -1) return false;
+    _store.payments[index] =
+        _store.payments[index].copyWith(status: 'refunded');
+    return true;
   }
 
   /// Get payment history
   Future<List<PaymentModel>> getPaymentHistory(String userId) async {
-    try {
-      final data = await _supabase
-          .from('payments')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      return (data as List).map((json) => PaymentModel.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching payment history: $e');
-      return [];
-    }
+    final payments =
+        _store.payments.where((payment) => payment.userId == userId).toList();
+    payments.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return payments;
   }
 
   void dispose() {

@@ -106,30 +106,23 @@ class _SplashScreenState extends State<SplashScreen>
     _navigationTimer = Timer(Duration(seconds: 4), () async {
       if (mounted) {
         final authService = AuthService();
-        if (authService.isLoggedIn) {
-          try {
-            // Add 5-second timeout to prevent infinite hang
-            await authService.initSession().timeout(
-              Duration(seconds: 5),
-              onTimeout: () {
-                print('⚠️ Auth init timeout - navigating to login');
-              },
-            );
-          } catch (e) {
-            print('❌ Auth error during init: $e');
-          }
+        try {
+          // Always restore persisted session first before deciding route.
+          await authService.initSession().timeout(
+                Duration(seconds: 5),
+                onTimeout: () {},
+              );
+        } catch (_) {
+          // Fall through to login when restore fails.
+        }
 
-          final user = authService.currentUser;
-          if (user != null && user.isDoctor) {
-            Get.offNamed('/doctor-home');
-          } else if (user != null) {
-            Get.offNamed('/home');
-          } else {
-            // If user fetch failed, go to login
-            Get.offNamed('/login');
-          }
+        final user = authService.currentUser;
+        if (user != null && user.isDoctor) {
+          Get.offAllNamed('/doctor-home');
+        } else if (user != null) {
+          Get.offAllNamed('/home');
         } else {
-          Get.offNamed('/login');
+          Get.offAllNamed('/login');
         }
       }
     });
