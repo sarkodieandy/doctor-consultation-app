@@ -5,7 +5,7 @@ class PaymentModel {
   final String userId;
   final double amount;
   final String status; // pending, completed, failed, refunded
-  final String paymentMethod; // paystack, mobile_money, credit_card
+  final String paymentMethod; // mobile_money, mobile_money, credit_card
   final String transactionId;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -87,18 +87,36 @@ class PaymentModel {
       doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
       userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
       amount: (json['amount'] ?? 0).toDouble(),
-      status: json['status'] ?? 'pending',
+      status: _normalizeStatus(
+          json['status'] ?? json['payment_status'] ?? 'pending'),
       paymentMethod:
-          json['payment_method'] ?? json['paymentMethod'] ?? 'paystack',
-      transactionId: json['transaction_id'] ?? json['transactionId'] ?? '',
+          (json['payment_method'] ?? json['paymentMethod'] ?? 'mobile_money')
+              .toString(),
+      transactionId: (json['transaction_id'] ??
+              json['transactionId'] ??
+              json['transaction_reference'] ??
+              '')
+          .toString(),
       createdAt: DateTime.parse(json['created_at'] ??
           json['createdAt'] ??
           DateTime.now().toIso8601String()),
       completedAt: (json['completed_at'] ?? json['completedAt']) != null
           ? DateTime.parse(json['completed_at'] ?? json['completedAt'])
           : null,
-      receiptId: json['receipt_id'] ?? json['receiptId'],
-      failureReason: json['failure_reason'] ?? json['failureReason'],
+      receiptId: (json['receipt_id'] ?? json['receiptId'])?.toString(),
+      failureReason:
+          (json['failure_reason'] ?? json['failureReason'])?.toString(),
     );
+  }
+
+  static String _normalizeStatus(dynamic status) {
+    final value = status?.toString().toLowerCase() ?? 'pending';
+    return switch (value) {
+      'paid' => 'completed',
+      'refunded' => 'refunded',
+      'failed' => 'failed',
+      'pending' => 'pending',
+      _ => value,
+    };
   }
 }

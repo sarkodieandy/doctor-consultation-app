@@ -163,7 +163,7 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
             SizedBox(height: 16),
             _buildSectionInfo(
               'Lab reports stay ready for future visits',
-              'Upload placeholders are local-only for now, but the screen already supports a structured patient record vault.',
+              'Upload controls and structured patient record views are ready for UI review.',
             ),
             SizedBox(height: 16),
             ...controller.labReports.map((report) {

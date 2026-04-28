@@ -78,7 +78,7 @@ class _SearchBarState extends State<SearchBar> {
           alignment: Alignment.centerRight,
           child: MaterialButton(
             onPressed: _handleSearch,
-            color: kOrangeColor,
+            color: kBlueColor,
             padding: EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 15,

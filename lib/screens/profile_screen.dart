@@ -579,6 +579,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (imagePath.startsWith('assets/')) {
       return AssetImage(imagePath);
     }
-    return NetworkImage(imagePath);
+    if (_looksLikeSvg(imagePath)) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
+  }
+
+  bool _looksLikeSvg(String value) {
+    return value.toLowerCase().contains('.svg');
   }
 }

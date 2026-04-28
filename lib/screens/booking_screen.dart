@@ -166,7 +166,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                   ),
                   Text(
-                    'Payment preview',
+                    'Payment details',
                     style: TextStyle(
                       fontSize: 12,
                       color: kTitleTextColor.withOpacity(0.6),
@@ -538,10 +538,31 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _proceedToPayment() async {
-    final result = await Get.toNamed('/paystack-checkout', arguments: {
+    final appointmentId = await controller.bookAppointment(
+      widget.doctor.id,
+      selectedDate,
+      selectedTime,
+    );
+
+    if (appointmentId == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create the appointment draft.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final result = await Get.toNamed('/payment-method', arguments: {
       'doctor': widget.doctor,
       'date': selectedDate,
       'time': selectedTime,
+      'appointment_id': appointmentId,
       'mode': selectedMode,
       'language': selectedLanguage,
       'reason': selectedReason,
@@ -551,30 +572,18 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     if (result == true) {
-      final success = await controller.bookAppointment(
-        widget.doctor.id,
-        selectedDate,
-        selectedTime,
-      );
-
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Appointment added to your local care plan.'
-                : 'Unable to add appointment.',
-          ),
-          backgroundColor: success ? Colors.green : Colors.red,
+        const SnackBar(
+          content: Text('Appointment booked and payment confirmed.'),
+          backgroundColor: Colors.green,
         ),
       );
 
-      if (success) {
-        Get.offNamed('/appointments');
-      }
+      Get.offNamed('/appointments');
     }
   }
 }

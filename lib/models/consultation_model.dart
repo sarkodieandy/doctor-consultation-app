@@ -59,19 +59,23 @@ class ConsultationModel {
       appointmentId:
           (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
       doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
-      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
-      doctorAvatar: json['doctor_avatar'] ?? json['doctorAvatar'] ?? '',
+      doctorName: (json['doctor_name'] ?? json['doctorName'] ?? '').toString(),
+      doctorAvatar:
+          (json['doctor_avatar'] ?? json['doctorAvatar'] ?? '').toString(),
       userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
       scheduledTime: DateTime.parse(json['scheduled_time'] ??
           json['scheduledTime'] ??
           DateTime.now().toIso8601String()),
-      duration: Duration(minutes: json['duration_minutes'] ?? 30),
-      status: json['status'] ?? 'scheduled',
+      duration: Duration(
+          minutes:
+              int.tryParse((json['duration_minutes'] ?? 30).toString()) ?? 30),
+      status: (json['status'] ?? 'scheduled').toString(),
       consultationType:
-          json['consultation_type'] ?? json['consultationType'] ?? 'video',
-      roomId: json['room_id'] ?? json['roomId'],
-      recordingUrl: json['recording_url'] ?? json['recordingUrl'],
-      summary: json['summary'],
+          (json['consultation_type'] ?? json['consultationType'] ?? 'video')
+              .toString(),
+      roomId: (json['room_id'] ?? json['roomId'])?.toString(),
+      recordingUrl: (json['recording_url'] ?? json['recordingUrl'])?.toString(),
+      summary: json['summary']?.toString(),
       startedAt: (json['started_at'] ?? json['startedAt']) != null
           ? DateTime.parse(json['started_at'] ?? json['startedAt'])
           : null,

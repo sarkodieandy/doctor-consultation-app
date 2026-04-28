@@ -136,8 +136,7 @@ const List<PatientHighlight> patientHomeHighlights = [
     title: 'Licensed doctors',
     subtitle: 'Verified profiles with care focus and response times.',
     eyebrow: 'Trusted access',
-    imageUrl:
-        'https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/doctorbg.png',
     icon: Icons.verified_user_outlined,
     color: Colors.green,
   ),
@@ -145,8 +144,7 @@ const List<PatientHighlight> patientHomeHighlights = [
     title: 'MoMo-friendly care',
     subtitle: 'Consultations remain ready for mobile money flows later.',
     eyebrow: 'Flexible payments',
-    imageUrl:
-        'https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/detail_illustration.png',
     icon: Icons.account_balance_wallet_outlined,
     color: Colors.teal,
   ),
@@ -154,8 +152,7 @@ const List<PatientHighlight> patientHomeHighlights = [
     title: 'Ghana coverage',
     subtitle: 'Browse doctors by region, language, and consultation mode.',
     eyebrow: 'Across regions',
-    imageUrl:
-        'https://images.unsplash.com/photo-1526256262350-7da7584cf5eb?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/onboarding_illustration.png',
     icon: Icons.public_outlined,
     color: Colors.deepOrange,
   ),
@@ -166,8 +163,7 @@ const List<PatientCareProgram> patientCarePrograms = [
     title: 'Maternal Care',
     subtitle: 'Antenatal follow-ups, postpartum checks, and nutrition prompts.',
     actionLabel: 'Track visits',
-    imageUrl:
-        'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/doctor1.png',
     icon: Icons.pregnant_woman_outlined,
     color: Colors.pink,
   ),
@@ -175,8 +171,7 @@ const List<PatientCareProgram> patientCarePrograms = [
     title: 'Chronic Care',
     subtitle: 'Blood pressure, diabetes, and medication adherence support.',
     actionLabel: 'View plan',
-    imageUrl:
-        'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/heart surg.jpeg',
     icon: Icons.monitor_heart_outlined,
     color: Colors.red,
   ),
@@ -184,8 +179,7 @@ const List<PatientCareProgram> patientCarePrograms = [
     title: 'Family Health',
     subtitle: 'Keep children and dependants organised in one care routine.',
     actionLabel: 'Add member',
-    imageUrl:
-        'https://images.unsplash.com/photo-1519340241574-2cec6aef0c01?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/doctor2.png',
     icon: Icons.family_restroom_outlined,
     color: Colors.blue,
   ),

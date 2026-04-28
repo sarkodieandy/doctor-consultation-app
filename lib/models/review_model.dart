@@ -59,22 +59,28 @@ class ReviewModel {
       appointmentId:
           (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
       doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
-      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
-      doctorAvatar: json['doctor_avatar'] ?? json['doctorAvatar'] ?? '',
+      doctorName: (json['doctor_name'] ?? json['doctorName'] ?? '').toString(),
+      doctorAvatar:
+          (json['doctor_avatar'] ?? json['doctorAvatar'] ?? '').toString(),
       patientId: (json['patient_id'] ?? '').toString(),
-      patientName: json['patient_name'] ?? json['patientName'] ?? '',
-      patientAvatar: json['patient_avatar'] ?? json['patientAvatar'] ?? '',
+      patientName:
+          (json['patient_name'] ?? json['patientName'] ?? '').toString(),
+      patientAvatar:
+          (json['patient_avatar'] ?? json['patientAvatar'] ?? '').toString(),
       rating: (json['rating'] ?? 5).toDouble(),
-      title: json['title'] ?? '',
-      reviewText: json['review_text'] ?? json['reviewText'] ?? '',
+      title: (json['title'] ?? '').toString(),
+      reviewText: (json['review_text'] ?? json['reviewText'] ?? '').toString(),
       tags: List<String>.from(json['tags'] ?? []),
       createdAt: DateTime.parse(json['created_at'] ??
           json['createdAt'] ??
           DateTime.now().toIso8601String()),
-      helpfulCount: json['helpful_count'] ?? json['helpfulCount'] ?? 0,
-      isVerifiedAppointment: json['is_verified_appointment'] ??
-          json['isVerifiedAppointment'] ??
-          false,
+      helpfulCount: int.tryParse(
+              (json['helpful_count'] ?? json['helpfulCount'] ?? 0)
+                  .toString()) ??
+          0,
+      isVerifiedAppointment: json['is_verified_appointment'] == true ||
+          json['isVerifiedAppointment'] == true ||
+          json['is_verified_appointment']?.toString() == '1',
     );
   }
 

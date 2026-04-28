@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/chat_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
@@ -10,7 +10,7 @@ class ChatService {
   }
 
   ChatService._internal();
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   /// Get all chats for the current user
   Future<List<ChatModel>> getChats(String userId) async {
@@ -250,10 +250,27 @@ class ChatService {
 
   /// Get all chats for doctor
   Future<List<ChatModel>> getChatsForDoctor(String doctorId) async {
-    final chats =
+    final doctorChats =
         _store.chats.where((chat) => chat.doctorId == doctorId).toList();
-    chats.sort(
-        (left, right) => right.lastMessageTime.compareTo(left.lastMessageTime));
-    return chats;
+
+    final mapped = doctorChats.map((chat) {
+      final patientId = _store.chatPatientsById[chat.id];
+      final patient = patientId == null ? null : _store.findUserById(patientId);
+
+      if (patient == null) {
+        return chat;
+      }
+
+      return chat.copyWith(
+        // Reuse existing fields to show counterpart details in UI.
+        doctorName: patient.fullName,
+        doctorAvatar: patient.profileImage,
+      );
+    }).toList();
+
+    mapped.sort(
+      (left, right) => right.lastMessageTime.compareTo(left.lastMessageTime),
+    );
+    return mapped;
   }
 }

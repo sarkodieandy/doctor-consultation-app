@@ -439,14 +439,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           width: size, height: size, fit: BoxFit.cover);
     }
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return Image.network(
-        imageUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            Image.asset(fallback, width: size, height: size, fit: BoxFit.cover),
-      );
+      return Image.asset(fallback,
+          width: size, height: size, fit: BoxFit.cover);
     }
     return Image.asset(imageUrl, width: size, height: size, fit: BoxFit.cover);
   }

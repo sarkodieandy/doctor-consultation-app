@@ -1,22 +1,24 @@
 import 'package:doctor_consultation_app/models/appointment_model.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
-import 'package:doctor_consultation_app/models/payment_model.dart';
-import 'package:doctor_consultation_app/services/api_service.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
-import 'package:doctor_consultation_app/services/payment_service.dart';
+import 'package:doctor_consultation_app/data/repositories/appointment_repository.dart';
+import 'package:doctor_consultation_app/data/repositories/doctor_repository.dart';
+import 'package:doctor_consultation_app/data/repositories/chat_repository.dart';
 import 'package:get/get.dart';
 
 class AppointmentController extends GetxController {
-  final _apiService = ApiService();
   final _authService = AuthService();
-  final _paymentService = PaymentService();
   final _notificationService = NotificationService();
+
+  final _doctorRepo = DoctorRepository();
+  final _appointmentRepo = AppointmentRepository();
+  final _chatRepo = ChatRepository();
 
   final doctors = <DoctorModel>[].obs;
   final appointments = <AppointmentModel>[].obs;
   final upcomingAppointments = <AppointmentModel>[].obs;
-  final payments = <PaymentModel>[].obs;
+  final doctorAppointments = <AppointmentModel>[].obs;
   final isLoading = false.obs;
   final selectedDoctor = Rxn<DoctorModel>();
   final errorMessage = Rxn<String>();
@@ -34,7 +36,7 @@ class AppointmentController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _apiService.getDoctors();
+      final result = await _doctorRepo.fetchDoctors();
       doctors.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -48,7 +50,8 @@ class AppointmentController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _apiService.getDoctorsBySpecialty(specialty);
+      final result =
+          await _doctorRepo.fetchDoctors(params: {'specialization': specialty});
       doctors.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -65,7 +68,7 @@ class AppointmentController extends GetxController {
       if (query.isEmpty) {
         await fetchDoctors();
       } else {
-        final result = await _apiService.searchDoctors(query);
+        final result = await _doctorRepo.searchDoctors(query);
         doctors.assignAll(result);
       }
     } catch (e) {
@@ -80,7 +83,7 @@ class AppointmentController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _apiService.getDoctorById(doctorId);
+      final result = await _doctorRepo.getDoctorById(doctorId);
       selectedDoctor(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -90,7 +93,7 @@ class AppointmentController extends GetxController {
   }
 
   /// Book appointment
-  Future<bool> bookAppointment(
+  Future<String?> bookAppointment(
     String doctorId,
     DateTime appointmentDate,
     String timeSlot,
@@ -103,22 +106,22 @@ class AppointmentController extends GetxController {
         throw 'User ID not found';
       }
 
-      final success = await _apiService.bookAppointment(
-        _userId!,
-        doctorId,
-        appointmentDate,
-        timeSlot,
+      final appointmentId = await _appointmentRepo.bookAppointment(
+        doctorId: doctorId,
+        userId: _userId!,
+        appointmentDate: appointmentDate,
+        timeSlot: timeSlot,
       );
 
-      if (success) {
+      if (appointmentId != null) {
         await fetchUserAppointments();
         await fetchUpcomingAppointments();
       }
 
-      return success;
+      return appointmentId;
     } catch (e) {
       errorMessage(e.toString());
-      return false;
+      return null;
     } finally {
       isLoading(false);
     }
@@ -131,7 +134,7 @@ class AppointmentController extends GetxController {
 
       isLoading(true);
       errorMessage(null);
-      final result = await _apiService.getUserAppointments(_userId!);
+      final result = await _appointmentRepo.fetchUserAppointments(_userId!);
       appointments.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -147,8 +150,22 @@ class AppointmentController extends GetxController {
 
       isLoading(true);
       errorMessage(null);
-      final result = await _apiService.getUpcomingAppointments(_userId!);
+      final result = await _appointmentRepo.fetchUpcomingAppointments(_userId!);
       upcomingAppointments.assignAll(result);
+    } catch (e) {
+      errorMessage(e.toString());
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  /// Fetch doctor appointments
+  Future<void> fetchDoctorAppointments() async {
+    try {
+      isLoading(true);
+      errorMessage(null);
+      final result = await _appointmentRepo.fetchDoctorAppointments();
+      doctorAppointments.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
     } finally {
@@ -167,7 +184,7 @@ class AppointmentController extends GetxController {
       }
 
       final success =
-          await _apiService.cancelAppointment(appointmentId, _userId!);
+          await _appointmentRepo.cancelAppointment(appointmentId, _userId!);
 
       if (success) {
         await fetchUserAppointments();
@@ -197,12 +214,8 @@ class AppointmentController extends GetxController {
         throw 'User ID not found';
       }
 
-      final success = await _apiService.addReview(
-        appointmentId,
-        _userId!,
-        rating,
-        review,
-      );
+      final success = await _appointmentRepo.addReview(
+          appointmentId, _userId!, rating, review);
 
       if (success) {
         await fetchUserAppointments();
@@ -212,22 +225,6 @@ class AppointmentController extends GetxController {
     } catch (e) {
       errorMessage(e.toString());
       return false;
-    } finally {
-      isLoading(false);
-    }
-  }
-
-  /// Get payment history
-  Future<void> fetchPaymentHistory() async {
-    try {
-      if (_userId == null || _userId!.isEmpty) return;
-
-      isLoading(true);
-      errorMessage(null);
-      final result = await _paymentService.getPaymentHistory(_userId!);
-      payments.assignAll(result);
-    } catch (e) {
-      errorMessage(e.toString());
     } finally {
       isLoading(false);
     }
@@ -335,23 +332,12 @@ class AppointmentController extends GetxController {
       isLoading(true);
       errorMessage(null);
 
-      // Import chat service
-      final chatService = await _importChatService();
-
-      // Update appointment status to confirmed
-      final apptUpdated = await _apiService.approveAppointment(
-        appointmentId,
-        doctorId,
-      );
+      final apptUpdated =
+          await _appointmentRepo.approveAppointment(appointmentId, doctorId);
 
       if (apptUpdated) {
-        // Auto-create chat session for approved appointment
-        await chatService.autoCreateChatForApprovedAppointment(
-          patientId,
-          doctorId,
-          doctorName,
-          doctorAvatar,
-        );
+        await _chatRepo.startChat(doctorId, doctorName, doctorAvatar);
+        await fetchDoctorAppointments();
 
         // Send notification
         await sendAppointmentConfirmed(
@@ -374,10 +360,49 @@ class AppointmentController extends GetxController {
     }
   }
 
-  /// Helper to import ChatService (avoids circular imports)
-  Future<dynamic> _importChatService() async {
-    // Dynamic import to avoid circular dependency
-    // In actual implementation, pass through constructor
-    return null; // TODO: Properly inject ChatService via constructor
+  /// Reject appointment (Doctor side)
+  Future<bool> rejectAppointment(
+    String appointmentId,
+    String doctorId,
+  ) async {
+    try {
+      isLoading(true);
+      errorMessage(null);
+
+      final rejected =
+          await _appointmentRepo.rejectAppointment(appointmentId, doctorId);
+      if (rejected) {
+        await fetchDoctorAppointments();
+      }
+      return rejected;
+    } catch (e) {
+      errorMessage(e.toString());
+      return false;
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  /// Complete appointment (Doctor side)
+  Future<bool> completeAppointment(
+    String appointmentId,
+    String doctorId,
+  ) async {
+    try {
+      isLoading(true);
+      errorMessage(null);
+
+      final completed =
+          await _appointmentRepo.completeAppointment(appointmentId, doctorId);
+      if (completed) {
+        await fetchDoctorAppointments();
+      }
+      return completed;
+    } catch (e) {
+      errorMessage(e.toString());
+      return false;
+    } finally {
+      isLoading(false);
+    }
   }
 }

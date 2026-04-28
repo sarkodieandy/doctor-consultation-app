@@ -19,7 +19,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    controller = Get.find<ChatController>();
+    if (Get.isRegistered<ChatController>()) {
+      controller = Get.find<ChatController>();
+    } else {
+      controller = Get.put<ChatController>(ChatController());
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.fetchChats();
     });
@@ -272,7 +276,10 @@ class _ChatScreenState extends State<ChatScreen> {
     if (avatar.startsWith('assets/')) {
       return AssetImage(avatar);
     }
-    return NetworkImage(avatar);
+    if (avatar.toLowerCase().contains('.svg')) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
   }
 }
 
@@ -321,7 +328,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
-    controller = Get.find<ChatController>();
+    if (Get.isRegistered<ChatController>()) {
+      controller = Get.find<ChatController>();
+    } else {
+      controller = Get.put<ChatController>(ChatController());
+    }
+
     final chat = Get.arguments;
     if (chat is ChatModel) {
       controller.openChat(chat);

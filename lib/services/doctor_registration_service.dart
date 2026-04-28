@@ -1,10 +1,10 @@
-import 'dart:io';
-
 import 'package:doctor_consultation_app/models/user_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/document_verification_service.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 import 'package:doctor_consultation_app/services/storage_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 class DoctorRegistrationService {
   static final DoctorRegistrationService _instance =
@@ -16,7 +16,7 @@ class DoctorRegistrationService {
 
   DoctorRegistrationService._internal();
 
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
   final _storageService = StorageService();
   final _authService = AuthService();
   final _verificationService = DocumentVerificationService();
@@ -29,9 +29,9 @@ class DoctorRegistrationService {
     required String experience,
     required double consultationFee,
     required String bio,
-    File? licenseFile,
-    File? ghanaCardFile,
-    String? profileImageFile,
+    PlatformFile? licenseFile,
+    PlatformFile? ghanaCardFile,
+    XFile? profileImageFile,
   }) async {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
@@ -65,7 +65,7 @@ class DoctorRegistrationService {
       experience: experience,
       consultationFee: consultationFee,
       bio: bio,
-      profileImage: profileImageFile ?? currentUser.profileImage,
+      profileImage: profileImageFile?.path ?? currentUser.profileImage,
       licenseDocumentPath: licensePath ?? currentUser.licenseDocumentPath,
       approvalStatus: DoctorApprovalStatus.pending,
       approvalNote: 'Awaiting local review',

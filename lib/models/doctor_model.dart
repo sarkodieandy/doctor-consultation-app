@@ -42,7 +42,16 @@ class DoctorModel {
       return AssetImage(resolvedImageUrl);
     }
 
-    return NetworkImage(resolvedImageUrl);
+    if (_looksLikeSvg(resolvedImageUrl)) {
+      return const AssetImage(fallbackImagePath);
+    }
+
+    return const AssetImage(fallbackImagePath);
+  }
+
+  bool _looksLikeSvg(String value) {
+    final lower = value.toLowerCase();
+    return lower.contains('.svg');
   }
 
   Map<String, dynamic> toJson() {
@@ -63,22 +72,49 @@ class DoctorModel {
   }
 
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
+    final availability = json['availability'] ?? json['available_times'] ?? [];
     return DoctorModel(
       id: (json['id'] ?? '').toString(),
-      name: json['name'] ?? '',
-      specialty: json['specialty'] ?? '',
-      description: json['description'] ?? '',
-      imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
-      rating: (json['rating'] ?? 4.5).toDouble(),
-      reviewCount: json['review_count'] ?? json['reviewCount'] ?? 0,
+      name: (json['name'] ?? '').toString(),
+      specialty: (json['specialty'] ?? json['specialization'] ?? '').toString(),
+      description: (json['description'] ?? json['bio'] ?? '').toString(),
+      imageUrl:
+          (json['image_url'] ?? json['imageUrl'] ?? json['profile_image'] ?? '')
+              .toString(),
+      rating: (json['rating'] ?? json['average_rating'] ?? 4.5).toDouble(),
+      reviewCount: json['review_count'] ??
+          json['reviewCount'] ??
+          json['reviews_count'] ??
+          0,
       consultationFee:
           (json['consultation_fee'] ?? json['consultationFee'] ?? 0).toDouble(),
-      experience: json['experience'] ?? '',
-      hospital: json['hospital'] ?? '',
-      available: json['available'] ?? true,
-      availableTimes: List<String>.from(
-          json['available_times'] ?? json['availableTimes'] ?? []),
+      experience:
+          (json['experience'] ?? json['experience_years'] ?? '').toString(),
+      hospital: (json['hospital'] ?? 'MediConnect Clinic').toString(),
+      available: json['available'] == true ||
+          json['available']?.toString() == '1' ||
+          json['available'] == null,
+      availableTimes: _parseAvailability(availability),
     );
+  }
+
+  static List<String> _parseAvailability(dynamic availability) {
+    if (availability is List) {
+      return availability.map((entry) {
+        if (entry is Map) {
+          final weekday = entry['weekday'];
+          final start = entry['start_time'] ?? entry['startTime'] ?? '';
+          final end = entry['end_time'] ?? entry['endTime'] ?? '';
+          if (weekday != null) {
+            return 'Day $weekday $start-$end';
+          }
+          return '$start-$end';
+        }
+        return entry.toString();
+      }).toList();
+    }
+
+    return const [];
   }
 
   DoctorModel copyWith({

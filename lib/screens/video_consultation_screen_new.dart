@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/constant.dart';
-import 'package:doctor_consultation_app/services/agora_service.dart';
+import 'package:doctor_consultation_app/services/call_preview_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
@@ -20,7 +20,7 @@ class VideoConsultationScreen extends StatefulWidget {
 }
 
 class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
-  final agoraService = AgoraService();
+  final callPreviewService = CallPreviewService();
 
   // Call state
   late String channelId;
@@ -59,10 +59,6 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
     patientName = args['patientName'] ?? 'You';
     isCameraOn = args['isVideoCall'] ?? true;
 
-    print('📞 Initializing video call...');
-    print('Channel: $channelId, User: $userId, Doctor: $doctorName');
-
-    // Simulate connection after 2 seconds
     Future.delayed(Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -98,10 +94,8 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
   }
 
   Future<void> _endCall() async {
-    // Stop timer
     callTimer?.cancel();
 
-    // Show end call dialog
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -166,8 +160,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
       barrierDismissible: false,
     );
 
-    // Save consultation to backend
-    await agoraService.endConsultation(
+    await callPreviewService.endConsultation(
       appointmentId: appointmentId,
       durationSeconds: callDurationSeconds,
     );
@@ -181,6 +174,9 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const doctorAvatarProvider =
+        AssetImage('assets/images/doctor1.png') as ImageProvider<Object>;
+
     return WillPopScope(
       onWillPop: () async {
         _endCall();
@@ -190,7 +186,6 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Remote user video (full screen)
             if (isRemoteUserJoined && !isConnecting)
               Container(
                 color: Colors.black87,
@@ -200,9 +195,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
                     children: [
                       CircleAvatar(
                         radius: 80,
-                        backgroundImage: NetworkImage(doctorAvatar.isEmpty
-                            ? 'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=600'
-                            : doctorAvatar),
+                        backgroundImage: doctorAvatarProvider,
                       ),
                       SizedBox(height: 24),
                       Text(
@@ -242,9 +235,7 @@ class _VideoConsultationScreenState extends State<VideoConsultationScreen> {
                   children: [
                     CircleAvatar(
                       radius: 80,
-                      backgroundImage: NetworkImage(doctorAvatar.isEmpty
-                          ? 'https://images.unsplash.com/photo-1559839734033-6461efaf3cfd?w=600'
-                          : doctorAvatar),
+                      backgroundImage: doctorAvatarProvider,
                     ),
                     SizedBox(height: 24),
                     Text(

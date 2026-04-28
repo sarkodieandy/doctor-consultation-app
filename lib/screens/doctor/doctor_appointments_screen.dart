@@ -1,5 +1,7 @@
 import 'package:doctor_consultation_app/components/sidebar_drawer.dart';
 import 'package:doctor_consultation_app/constant.dart';
+import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
+import 'package:doctor_consultation_app/models/appointment_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -11,6 +13,7 @@ class DoctorAppointmentsScreen extends StatefulWidget {
 
 class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
     with TickerProviderStateMixin {
+  late AppointmentController _appointmentController;
   late TabController _tabController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -19,6 +22,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   @override
   void initState() {
     super.initState();
+    _appointmentController = Get.find<AppointmentController>();
     _tabController = TabController(length: 4, vsync: this);
 
     _fadeController = AnimationController(
@@ -29,6 +33,10 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
     _fadeController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _appointmentController.fetchDoctorAppointments();
+    });
   }
 
   @override
@@ -38,13 +46,12 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
     super.dispose();
   }
 
-  // Mock appointment data - REMOVED for real testing
-  // Real appointments will load from Supabase
-  final List<Map<String, dynamic>> _appointments = [];
-
-  List<Map<String, dynamic>> _filterByStatus(String status) {
-    if (status == 'all') return _appointments;
-    return _appointments.where((a) => a['status'] == status).toList();
+  List<AppointmentModel> _filterByStatus(
+    List<AppointmentModel> appointments,
+    String status,
+  ) {
+    if (status == 'all') return appointments;
+    return appointments.where((a) => a.status == status).toList();
   }
 
   @override
@@ -100,18 +107,29 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
               ),
             ),
           ),
-          body: FadeTransition(
-            opacity: _fadeAnimation,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildAppointmentList('all'),
-                _buildAppointmentList('pending'),
-                _buildAppointmentList('confirmed'),
-                _buildAppointmentList('completed'),
-              ],
-            ),
-          ),
+          body: Obx(() {
+            final appointments = _appointmentController.doctorAppointments;
+
+            if (_appointmentController.isLoading.value &&
+                appointments.isEmpty) {
+              return Center(
+                child: CircularProgressIndicator(color: kBlueColor),
+              );
+            }
+
+            return FadeTransition(
+              opacity: _fadeAnimation,
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildAppointmentList(appointments, 'all'),
+                  _buildAppointmentList(appointments, 'pending'),
+                  _buildAppointmentList(appointments, 'confirmed'),
+                  _buildAppointmentList(appointments, 'completed'),
+                ],
+              ),
+            );
+          }),
         ),
         if (_isSidebarOpen)
           SidebarDrawer(
@@ -125,8 +143,11 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
     );
   }
 
-  Widget _buildAppointmentList(String status) {
-    final filtered = _filterByStatus(status);
+  Widget _buildAppointmentList(
+    List<AppointmentModel> appointments,
+    String status,
+  ) {
+    final filtered = _filterByStatus(appointments, status);
 
     if (filtered.isEmpty) {
       return Center(
@@ -148,7 +169,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
             ),
             SizedBox(height: 20),
             Text(
-              'No ${status} appointments',
+              'No ${status == 'all' ? '' : '$status '}appointments',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -186,14 +207,14 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
               ),
             );
           },
-          child: _buildAppointmentCard(apt),
+          child: _buildAppointmentCard(apt, index),
         );
       },
     );
   }
 
-  Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
-    final status = appointment['status'] as String;
+  Widget _buildAppointmentCard(AppointmentModel appointment, int index) {
+    final status = appointment.status;
     Color statusColor;
     IconData statusIcon;
 
@@ -263,7 +284,9 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      appointment['patient'],
+                      appointment.patientName.isNotEmpty
+                          ? appointment.patientName
+                          : 'Patient #${appointment.userId}',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -272,7 +295,9 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      appointment['type'],
+                      appointment.speciality.isNotEmpty
+                          ? appointment.speciality
+                          : 'Appointment',
                       style: TextStyle(
                         fontSize: 13,
                         color: kTitleTextColor.withOpacity(0.6),
@@ -320,7 +345,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                     Icon(Icons.calendar_today, size: 16, color: kBlueColor),
                     SizedBox(width: 6),
                     Text(
-                      appointment['date'],
+                      appointment.formattedDate,
                       style: TextStyle(
                         fontSize: 13,
                         color: kTitleTextColor.withOpacity(0.7),
@@ -336,7 +361,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                     Icon(Icons.access_time, size: 16, color: kOrangeColor),
                     SizedBox(width: 6),
                     Text(
-                      appointment['time'],
+                      appointment.timeSlot,
                       style: TextStyle(
                         fontSize: 13,
                         color: kTitleTextColor.withOpacity(0.7),
@@ -356,10 +381,11 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        appointment['status'] = 'cancelled';
-                      });
+                    onPressed: () async {
+                      await _appointmentController.rejectAppointment(
+                        appointment.id,
+                        appointment.doctorId,
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
@@ -383,10 +409,14 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                 SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        appointment['status'] = 'confirmed';
-                      });
+                    onPressed: () async {
+                      await _appointmentController.approveAppointment(
+                        appointment.id,
+                        appointment.doctorId,
+                        appointment.doctorName,
+                        appointment.doctorImage,
+                        appointment.userId,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,

@@ -68,11 +68,13 @@ class NotificationModel {
     return NotificationModel(
       id: (json['id'] ?? '').toString(),
       userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
-      title: json['title'] ?? '',
-      message: json['message'] ?? '',
-      type: json['type'] ?? 'appointment',
-      relatedId: json['related_id'] ?? json['relatedId'],
-      isRead: json['is_read'] ?? json['isRead'] ?? false,
+      title: (json['title'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      type: (json['type'] ?? 'appointment').toString(),
+      relatedId: (json['related_id'] ?? json['relatedId'])?.toString(),
+      isRead: json['is_read'] == true ||
+          json['isRead'] == true ||
+          json['is_read']?.toString() == '1',
       createdAt: DateTime.parse(json['created_at'] ??
           json['createdAt'] ??
           DateTime.now().toIso8601String()),

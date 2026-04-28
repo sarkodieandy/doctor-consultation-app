@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/review_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
 class ReviewService {
   static final ReviewService _instance = ReviewService._internal();
@@ -9,7 +9,7 @@ class ReviewService {
   }
 
   ReviewService._internal();
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   /// Get all reviews
   Future<List<ReviewModel>> getAllReviews() async {

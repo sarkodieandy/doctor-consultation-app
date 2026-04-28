@@ -65,7 +65,7 @@ class OnboardingScreen extends StatelessWidget {
                       onPressed: () {
                         Get.offNamed('/home');
                       },
-                      color: kOrangeColor,
+                      color: kBlueColor,
                       padding: const EdgeInsets.symmetric(horizontal: 30),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),

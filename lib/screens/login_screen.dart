@@ -116,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: kOrangeColor.withOpacity(0.15),
+                color: kBlueColor.withOpacity(0.15),
               ),
             ),
           ),
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: kOrangeColor.withOpacity(0.10),
+                color: kBlueColor.withOpacity(0.10),
               ),
             ),
           ),
@@ -186,9 +186,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ).animate().fadeIn(duration: 300.ms).shake(),
 
-                    // Email Field
+                    // Email / Username Field
                     Text(
-                      'Email Address',
+                      'Email or Username',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        hintText: 'Enter your email',
+                        hintText: 'Enter your email or username',
                         hintStyle: TextStyle(color: kSearchTextColor),
                         filled: true,
                         fillColor: Color(0xffEEF2FF),
@@ -338,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 55,
                       child: MaterialButton(
                         onPressed: _isLoading ? null : _login,
-                        color: kOrangeColor,
+                        color: kBlueColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
@@ -441,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Sign up',
                             style: TextStyle(
                               fontSize: 14,
-                              color: kOrangeColor,
+                              color: kBlueColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

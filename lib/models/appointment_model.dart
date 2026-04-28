@@ -4,6 +4,8 @@ class AppointmentModel {
   final String doctorId;
   final String doctorName;
   final String doctorImage;
+  final String patientName;
+  final String patientAvatar;
   final String speciality;
   final DateTime appointmentDate;
   final String timeSlot;
@@ -20,6 +22,8 @@ class AppointmentModel {
     required this.doctorId,
     required this.doctorName,
     required this.doctorImage,
+    this.patientName = '',
+    this.patientAvatar = '',
     required this.speciality,
     required this.appointmentDate,
     required this.timeSlot,
@@ -67,6 +71,8 @@ class AppointmentModel {
       'doctor_id': doctorId,
       'doctor_name': doctorName,
       'doctor_image': doctorImage,
+      'patient_name': patientName,
+      'patient_avatar': patientAvatar,
       'speciality': speciality,
       'appointment_date': appointmentDate.toIso8601String(),
       'time_slot': timeSlot,
@@ -80,30 +86,63 @@ class AppointmentModel {
   }
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
+    final doctorJson = json['doctor'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(json['doctor'])
+        : const <String, dynamic>{};
     return AppointmentModel(
       id: (json['id'] ?? '').toString(),
-      userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
-      doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
-      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
-      doctorImage: json['doctor_image'] ?? json['doctorImage'] ?? '',
-      speciality: json['speciality'] ?? '',
+      userId: (json['user_id'] ??
+              json['userId'] ??
+              json['patient_id'] ??
+              json['patientId'] ??
+              '')
+          .toString(),
+      doctorId:
+          (json['doctor_id'] ?? json['doctorId'] ?? doctorJson['id'] ?? '')
+              .toString(),
+      doctorName: (json['doctor_name'] ??
+              json['doctorName'] ??
+              doctorJson['name'] ??
+              '')
+          .toString(),
+      doctorImage: (json['doctor_image'] ??
+              json['doctorImage'] ??
+              doctorJson['image_url'] ??
+              doctorJson['profile_image'] ??
+              '')
+          .toString(),
+      patientName:
+          (json['patient_name'] ?? json['patientName'] ?? '').toString(),
+      patientAvatar:
+          (json['patient_avatar'] ?? json['patientAvatar'] ?? '').toString(),
+      speciality: (json['speciality'] ??
+              json['specialty'] ??
+              doctorJson['specialization'] ??
+              doctorJson['specialty'] ??
+              '')
+          .toString(),
       appointmentDate: json['appointment_date'] != null
           ? DateTime.parse(json['appointment_date'])
           : (json['appointmentDate'] != null
               ? DateTime.parse(json['appointmentDate'])
               : DateTime.now()),
-      timeSlot: json['time_slot'] ?? json['timeSlot'] ?? '',
+      timeSlot: (json['time_slot'] ??
+              json['timeSlot'] ??
+              json['appointment_time'] ??
+              json['appointmentTime'] ??
+              '')
+          .toString(),
       consultationFee:
           (json['consultation_fee'] ?? json['consultationFee'] ?? 0).toDouble(),
-      status: json['status'] ?? 'pending',
+      status: (json['status'] ?? 'pending').toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : (json['createdAt'] != null
               ? DateTime.parse(json['createdAt'])
               : DateTime.now()),
-      notes: json['notes'],
+      notes: (json['notes'] ?? json['reason'])?.toString(),
       rating: json['rating'] != null ? (json['rating']).toDouble() : null,
-      review: json['review'],
+      review: (json['review'] ?? json['comment'])?.toString(),
     );
   }
 
@@ -113,6 +152,8 @@ class AppointmentModel {
     String? doctorId,
     String? doctorName,
     String? doctorImage,
+    String? patientName,
+    String? patientAvatar,
     String? speciality,
     DateTime? appointmentDate,
     String? timeSlot,
@@ -129,6 +170,8 @@ class AppointmentModel {
       doctorId: doctorId ?? this.doctorId,
       doctorName: doctorName ?? this.doctorName,
       doctorImage: doctorImage ?? this.doctorImage,
+      patientName: patientName ?? this.patientName,
+      patientAvatar: patientAvatar ?? this.patientAvatar,
       speciality: speciality ?? this.speciality,
       appointmentDate: appointmentDate ?? this.appointmentDate,
       timeSlot: timeSlot ?? this.timeSlot,

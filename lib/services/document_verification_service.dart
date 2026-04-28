@@ -1,4 +1,4 @@
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
 class DocumentVerificationService {
   static final DocumentVerificationService _instance =
@@ -10,7 +10,7 @@ class DocumentVerificationService {
 
   DocumentVerificationService._internal();
 
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   Future<Map<String, dynamic>> verifyDoctorDocuments({
     required String doctorId,

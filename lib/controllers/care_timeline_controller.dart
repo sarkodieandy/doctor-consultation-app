@@ -1,17 +1,18 @@
 import 'package:doctor_consultation_app/models/care_timeline_item.dart';
-import 'package:doctor_consultation_app/services/api_service.dart';
+import 'package:doctor_consultation_app/data/repositories/appointment_repository.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/consultation_service.dart';
-import 'package:doctor_consultation_app/services/notification_service.dart';
-import 'package:doctor_consultation_app/services/prescription_service.dart';
+import 'package:doctor_consultation_app/data/repositories/prescription_repository.dart';
+import 'package:doctor_consultation_app/data/repositories/notification_repository.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class CareTimelineController extends GetxController {
   final _authService = AuthService();
-  final _apiService = ApiService();
+  final _appointmentRepo = AppointmentRepository();
   final _consultationService = ConsultationService();
-  final _prescriptionService = PrescriptionService();
-  final _notificationService = NotificationService();
+  final _prescriptionRepo = PrescriptionRepository();
+  final _notificationRepo = NotificationRepository();
 
   final items = <CareTimelineItem>[].obs;
   final isLoading = false.obs;
@@ -28,20 +29,23 @@ class CareTimelineController extends GetxController {
 
   String? _userId;
 
-  static const _appointmentFallbackImage =
-      'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=900&q=80';
-  static const _consultationFallbackImage =
-      'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=900&q=80';
+  static const _appointmentFallbackImage = 'assets/images/doctor1.png';
+  static const _consultationFallbackImage = 'assets/images/doctor2.png';
   static const _prescriptionFallbackImage =
-      'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=900&q=80';
+      'assets/images/detail_illustration.png';
   static const _notificationFallbackImage =
-      'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80';
+      'assets/images/onboarding_illustration.png';
 
   @override
   void onInit() {
     super.onInit();
     _userId = _authService.resolveUserId(fallback: Get.arguments);
-    fetchTimeline();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isClosed) {
+        return;
+      }
+      fetchTimeline();
+    });
   }
 
   List<CareTimelineItem> get visibleItems {
@@ -95,10 +99,10 @@ class CareTimelineController extends GetxController {
       isLoading(true);
       errorMessage(null);
 
-      final appointments = await _apiService.getUserAppointments(userId);
+      final appointments = await _appointmentRepo.fetchUserAppointments(userId);
       final consultations = await _consultationService.getConsultations(userId);
-      final prescriptions = await _prescriptionService.getPrescriptions(userId);
-      final notifications = await _notificationService.getNotifications(userId);
+      final prescriptions = await _prescriptionRepo.fetchPrescriptions(userId);
+      final notifications = await _notificationRepo.fetchNotifications(userId);
 
       final timelineItems = <CareTimelineItem>[
         ...appointments.map(
@@ -108,7 +112,7 @@ class CareTimelineController extends GetxController {
             title: 'Appointment with ${appointment.doctorName}',
             subtitle:
                 '${appointment.speciality} • ${appointment.timeSlot} • GHS ${appointment.consultationFee.toStringAsFixed(2)}',
-            imageUrl: _resolveRemoteImage(
+            imageUrl: _resolvePreviewImage(
               appointment.doctorImage,
               _appointmentFallbackImage,
             ),
@@ -131,7 +135,7 @@ class CareTimelineController extends GetxController {
                 '${consultation.consultationType.toUpperCase()} consultation',
             subtitle:
                 '${consultation.doctorName} • ${consultation.duration.inMinutes} min',
-            imageUrl: _resolveRemoteImage(
+            imageUrl: _resolvePreviewImage(
               consultation.doctorAvatar,
               _consultationFallbackImage,
             ),
@@ -198,9 +202,9 @@ class CareTimelineController extends GetxController {
     }
   }
 
-  String _resolveRemoteImage(String candidate, String fallback) {
+  String _resolvePreviewImage(String candidate, String fallback) {
     final value = candidate.trim();
-    if (value.startsWith('http://') || value.startsWith('https://')) {
+    if (value.startsWith('assets/')) {
       return value;
     }
     return fallback;

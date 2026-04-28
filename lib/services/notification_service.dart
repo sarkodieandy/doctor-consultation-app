@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/notification_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -13,7 +13,7 @@ class NotificationService {
   NotificationService._internal() {
     _notificationsPlugin = FlutterLocalNotificationsPlugin();
   }
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   /// Initialize notifications
   Future<void> initialize() async {

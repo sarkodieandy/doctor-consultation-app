@@ -1,6 +1,7 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/review_controller.dart';
 import 'package:doctor_consultation_app/data/patient_ui_content.dart';
+import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/models/review_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -380,7 +381,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     if (avatar.startsWith('assets/')) {
       return AssetImage(avatar);
     }
-    return NetworkImage(avatar);
+    if (avatar.toLowerCase().contains('.svg')) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
   }
 }
 
@@ -666,7 +670,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         patientId: user.id,
         patientName: user.fullName,
         patientAvatar: user.profileImage.isEmpty
-            ? 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'
+            ? DoctorModel.fallbackImagePath
             : user.profileImage,
         rating: _rating,
         title: titleController.text.trim(),

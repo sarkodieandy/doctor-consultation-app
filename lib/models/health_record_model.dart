@@ -45,17 +45,17 @@ class HealthRecordModel {
     return HealthRecordModel(
       id: (json['id'] ?? '').toString(),
       userId: (json['user_id'] ?? '').toString(),
-      type: json['type'] ?? 'vital',
-      title: json['title'] ?? '',
-      value: json['value'] ?? '',
-      unit: json['unit'] ?? '',
-      normalRange: json['normal_range'] ?? json['normalRange'],
-      status: json['status'],
+      type: (json['type'] ?? 'vital').toString(),
+      title: (json['title'] ?? '').toString(),
+      value: (json['value'] ?? '').toString(),
+      unit: (json['unit'] ?? '').toString(),
+      normalRange: (json['normal_range'] ?? json['normalRange'])?.toString(),
+      status: (json['status'])?.toString(),
       recordDate: DateTime.parse(json['record_date'] ??
           json['recordDate'] ??
           DateTime.now().toIso8601String()),
-      documentUrl: json['document_url'] ?? json['documentUrl'],
-      notes: json['notes'],
+      documentUrl: (json['document_url'] ?? json['documentUrl'])?.toString(),
+      notes: (json['notes'])?.toString(),
     );
   }
 

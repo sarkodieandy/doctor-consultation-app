@@ -40,13 +40,18 @@ class MessageModel {
       id: (json['id'] ?? '').toString(),
       chatId: (json['chat_id'] ?? json['chatId'] ?? '').toString(),
       senderId: (json['sender_id'] ?? json['senderId'] ?? '').toString(),
-      senderName: json['sender_name'] ?? json['senderName'] ?? '',
-      senderAvatar: json['sender_avatar'] ?? json['senderAvatar'] ?? '',
-      message: json['message'] ?? '',
-      isDoctor: json['is_doctor'] ?? json['isDoctor'] ?? false,
+      senderName: (json['sender_name'] ?? json['senderName'] ?? '').toString(),
+      senderAvatar:
+          (json['sender_avatar'] ?? json['senderAvatar'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      isDoctor: json['is_doctor'] == true ||
+          json['isDoctor'] == true ||
+          json['is_doctor']?.toString() == '1',
       timestamp:
           DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
-      isRead: json['is_read'] ?? json['isRead'] ?? false,
+      isRead: json['is_read'] == true ||
+          json['isRead'] == true ||
+          json['is_read']?.toString() == '1',
     );
   }
 
@@ -113,14 +118,20 @@ class ChatModel {
     return ChatModel(
       id: (json['id'] ?? '').toString(),
       doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
-      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
-      doctorAvatar: json['doctor_avatar'] ?? json['doctorAvatar'] ?? '',
-      lastMessage: json['last_message'] ?? json['lastMessage'] ?? '',
+      doctorName: (json['doctor_name'] ?? json['doctorName'] ?? '').toString(),
+      doctorAvatar:
+          (json['doctor_avatar'] ?? json['doctorAvatar'] ?? '').toString(),
+      lastMessage:
+          (json['last_message'] ?? json['lastMessage'] ?? '').toString(),
       lastMessageTime: DateTime.parse(json['last_message_time'] ??
           json['lastMessageTime'] ??
           DateTime.now().toIso8601String()),
-      unreadCount: json['unread_count'] ?? json['unreadCount'] ?? 0,
-      isActive: json['is_active'] ?? json['isActive'] ?? true,
+      unreadCount: int.tryParse(
+              (json['unread_count'] ?? json['unreadCount'] ?? 0).toString()) ??
+          0,
+      isActive: json['is_active'] == true ||
+          json['isActive'] == true ||
+          json['is_active']?.toString() == '1',
     );
   }
 

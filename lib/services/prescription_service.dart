@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
 class PrescriptionService {
   static final PrescriptionService _instance = PrescriptionService._internal();
@@ -9,7 +9,7 @@ class PrescriptionService {
   }
 
   PrescriptionService._internal();
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   /// Get all prescriptions
   Future<List<PrescriptionModel>> getPrescriptions(String userId) async {

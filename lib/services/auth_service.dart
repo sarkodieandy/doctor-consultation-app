@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:doctor_consultation_app/models/user_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -13,7 +12,7 @@ class AuthService {
 
   AuthService._internal();
 
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   UserModel? _currentUser;
 
@@ -60,21 +59,8 @@ class AuthService {
     return defaultValue;
   }
 
-  static const _kUserIdKey = 'session_user_id';
-
   Future<void> initSession() async {
-    // First try in-memory (already set this session)
-    String? userId = _store.currentUserId;
-
-    // Fall back to persisted session from SharedPreferences
-    if (userId == null) {
-      final prefs = await SharedPreferences.getInstance();
-      userId = prefs.getString(_kUserIdKey);
-      if (userId != null) {
-        _store.currentUserId = userId;
-      }
-    }
-
+    final userId = _store.currentUserId;
     if (userId == null) {
       _currentUser = null;
       return;
@@ -82,31 +68,32 @@ class AuthService {
     _currentUser = _store.findUserById(userId);
   }
 
-  Future<bool> login(String email, String password) async {
-    final normalizedEmail = email.trim().toLowerCase();
+  Future<bool> login(String login, String password) async {
+    final normalizedLogin = login.trim().toLowerCase();
     final trimmedPassword = password.trim();
 
-    if (normalizedEmail.isEmpty) throw 'Please enter your email address.';
+    if (normalizedLogin.isEmpty) {
+      throw 'Please enter your email or username.';
+    }
     if (trimmedPassword.isEmpty) throw 'Please enter your password.';
 
-    final user = _store.findUserByEmail(normalizedEmail);
-    if (user == null) {
-      throw 'No account found with this email. Please sign up first.';
+    final resolvedEmail = _store.resolveEmailFromLogin(normalizedLogin);
+    if (resolvedEmail == null) {
+      throw 'No account found with this email/username. Please sign up first.';
     }
 
-    final storedPassword = _store.passwordsByEmail[normalizedEmail];
-    // Test accounts (seeded from local store) accept any password
-    final isTestAccount = normalizedEmail == 'patient@test.com' ||
-        normalizedEmail == 'doctor@test.com' ||
-        normalizedEmail == 'admin@test.com';
-    if (!isTestAccount && storedPassword != trimmedPassword) {
+    final user = _store.findUserByEmail(resolvedEmail);
+    if (user == null) {
+      throw 'No account found with this email/username. Please sign up first.';
+    }
+
+    final storedPassword = _store.passwordsByEmail[resolvedEmail];
+    if (storedPassword == null || storedPassword != trimmedPassword) {
       throw 'Incorrect password. Please try again.';
     }
 
     _currentUser = user;
     _store.currentUserId = user.id;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kUserIdKey, user.id);
     return true;
   }
 
@@ -116,7 +103,7 @@ class AuthService {
     String lastName,
     String phone,
     String password, {
-    File? profilePictureFile,
+    XFile? profilePictureFile,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
 
@@ -152,8 +139,6 @@ class AuthService {
     _store.saveUser(user);
     _store.currentUserId = user.id;
     _currentUser = user;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kUserIdKey, user.id);
     return true;
   }
 
@@ -167,8 +152,9 @@ class AuthService {
     required String experience,
     required double consultationFee,
     required String licenseDocumentPath,
+    PlatformFile? licenseDocumentFile,
     String bio = '',
-    File? profilePictureFile,
+    XFile? profilePictureFile,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
 
@@ -216,8 +202,6 @@ class AuthService {
     _store.saveUser(user);
     _store.currentUserId = user.id;
     _currentUser = user;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kUserIdKey, user.id);
     return true;
   }
 
@@ -258,8 +242,6 @@ class AuthService {
   Future<void> logout() async {
     _store.currentUserId = null;
     _currentUser = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kUserIdKey);
   }
 
   Future<bool> resetPassword(String email) async {
@@ -269,11 +251,14 @@ class AuthService {
     return _store.findUserByEmail(email.trim().toLowerCase()) != null;
   }
 
-  Future<String> uploadProfilePicture(String userId, File imageFile) async {
+  Future<String> uploadProfilePicture(String userId, XFile imageFile) async {
     return imageFile.path;
   }
 
-  Future<void> updateCurrentUser(UserModel user) async {
+  Future<void> updateCurrentUser(
+    UserModel user, {
+    XFile? profilePictureFile,
+  }) async {
     _store.saveUser(user);
     _currentUser = user;
     _store.currentUserId = user.id;

@@ -1,10 +1,10 @@
 import 'package:doctor_consultation_app/constant.dart';
+import 'package:doctor_consultation_app/data/repositories/payment_repository.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
-import 'package:doctor_consultation_app/services/payment_service.dart';
-import 'package:doctor_consultation_app/services/paystack_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -15,14 +15,13 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   final _authService = AuthService();
-  final _paymentService = PaymentService();
+  final _paymentRepository = PaymentRepository();
   final _notificationService = NotificationService();
-  final _paystackService = PaystackService();
 
   late DoctorModel doctor;
   late DateTime appointmentDate;
   late String appointmentTime;
-  late String consultationId;
+  late String appointmentId;
   late String consultationMode;
   late String preferredLanguage;
   late String visitReason;
@@ -43,7 +42,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     doctor = args['doctor'];
     appointmentDate = args['date'];
     appointmentTime = args['time'];
-    consultationId = args['consultation_id'] ??
+    appointmentId = args['appointment_id']?.toString() ??
+        args['consultation_id']?.toString() ??
         DateTime.now().millisecondsSinceEpoch.toString();
     consultationMode = args['mode'] ?? 'Video';
     preferredLanguage = args['language'] ?? 'English';
@@ -56,10 +56,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _loadPreview() async {
-    commissionAmount = await _paystackService.getCommissionAmount(
-      doctor.id,
-      doctor.consultationFee,
-    );
+    commissionAmount = doctor.consultationFee * 0.15;
     doctorEarnings = doctor.consultationFee - commissionAmount;
     if (mounted) {
       setState(() => isLoading = false);
@@ -76,52 +73,52 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     setState(() => isProcessing = true);
+    try {
+      final initialization = await _paymentRepository.initializePayment(
+        appointmentId: appointmentId,
+        amount: doctor.consultationFee,
+        currency: 'GHS',
+        paymentMethod: paymentMethod,
+      );
+      final reference = initialization['reference']?.toString() ??
+          initialization['transaction_id']?.toString();
 
-    _paymentService.initializePayment(
-      onSuccess: (_) async {
-        await _paystackService.createDoctorPayout(
-          doctorId: doctor.id,
-          paymentId: consultationId,
-          payoutAmount: doctorEarnings,
-          commissionAmount: commissionAmount,
-        );
-        await _notificationService.sendPaymentSuccess(
-          paymentId: consultationId,
-          amount: doctor.consultationFee,
-          appointmentId: consultationId,
-          userId: user.id,
-        );
-        if (!mounted) return;
-        setState(() => isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment completed in local preview mode.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) {
-            Get.back(result: true);
-          }
-        });
-      },
-      onFailure: (message) {
-        if (!mounted) return;
-        setState(() => isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      },
-    );
+      if (reference == null || reference.isEmpty) {
+        throw 'Payment initialization failed';
+      }
 
-    await _paymentService.processPayment(
-      appointmentId: consultationId,
-      doctorId: doctor.id,
-      userId: user.id,
-      amount: doctor.consultationFee,
-      userEmail: user.email,
-      userName: user.fullName,
-    );
+      final verified = await _paymentRepository.verifyPayment(reference);
+      if (!verified) {
+        throw 'Payment verification failed';
+      }
+
+      await _notificationService.sendPaymentSuccess(
+        paymentId: appointmentId,
+        amount: doctor.consultationFee,
+        appointmentId: appointmentId,
+        userId: user.id,
+      );
+
+      if (!mounted) return;
+      setState(() => isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment completed successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) {
+          Get.back(result: true);
+        }
+      });
+    } catch (message) {
+      if (!mounted) return;
+      setState(() => isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message.toString())),
+      );
+    }
   }
 
   @override
@@ -130,203 +127,287 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kBackgroundColor,
-        elevation: 0,
-        title: const Text('Payment Preview'),
-        centerTitle: true,
-      ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          ? Center(
+              child: CircularProgressIndicator(color: kBlueColor),
+            )
+          : Column(
+              children: [
+                // ── Blue header ──────────────────────────────
+                _buildHeader(consultationFee),
+
+                // ── Scrollable body ──────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                    child: Column(
+                      children: [
+                        _buildConsultationCard()
+                            .animate()
+                            .fadeIn(delay: 100.ms, duration: 350.ms)
+                            .slideY(begin: 0.12, end: 0),
+                        const SizedBox(height: 16),
+                        if (selectedSymptoms.isNotEmpty ||
+                            symptomDescription.isNotEmpty ||
+                            careNotes.isNotEmpty)
+                          _buildIntakeCard()
+                              .animate()
+                              .fadeIn(delay: 200.ms, duration: 350.ms)
+                              .slideY(begin: 0.12, end: 0),
+                        if (selectedSymptoms.isNotEmpty ||
+                            symptomDescription.isNotEmpty ||
+                            careNotes.isNotEmpty)
+                          const SizedBox(height: 16),
+                        _buildBreakdownCard(consultationFee)
+                            .animate()
+                            .fadeIn(delay: 300.ms, duration: 350.ms)
+                            .slideY(begin: 0.12, end: 0),
+                        const SizedBox(height: 28),
+                        _buildConfirmButton(consultationFee)
+                            .animate()
+                            .fadeIn(delay: 400.ms, duration: 350.ms)
+                            .slideY(begin: 0.1, end: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHeader(double fee) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kBlueColor,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 20, 28),
+          child: Column(
+            children: [
+              // Back button row
+              Row(
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Backend payment processing has been removed. This screen now previews the UI-only payment state.',
-                      style: TextStyle(fontSize: 13),
-                    ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
                   ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                  const Spacer(),
+                  const Text(
+                    'Payment',
+                    style: TextStyle(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Consultation Details',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const CircleAvatar(
-                              radius: 40,
-                              child: Icon(Icons.person),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    doctor.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    doctor.specialty,
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 24),
-                        _buildDetailRow(
-                          'Date',
-                          DateFormat('MMM d, yyyy').format(appointmentDate),
-                        ),
-                        _buildDetailRow('Time', appointmentTime),
-                        _buildDetailRow('Mode', consultationMode),
-                        _buildDetailRow('Language', preferredLanguage),
-                        _buildDetailRow('Reason', visitReason),
-                        _buildDetailRow(
-                            'Payment via', _paymentMethodLabel(paymentMethod)),
-                      ],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                  const Spacer(),
+                  const SizedBox(width: 48),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Doctor avatar + name
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                child: const Icon(Icons.person_rounded,
+                    color: Colors.white, size: 38),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                doctor.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                doctor.specialty,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.75),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Amount pill
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(40),
+                ),
+                child: Text(
+                  'GHS ${fee.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.06, end: 0);
+  }
+
+  Widget _buildConsultationCard() {
+    return _Card(
+      title: 'Consultation Details',
+      icon: Icons.event_note_rounded,
+      children: [
+        _InfoTile(
+          icon: Icons.calendar_today_rounded,
+          label: 'Date',
+          value: DateFormat('EEE, MMM d yyyy').format(appointmentDate),
+        ),
+        _InfoTile(
+          icon: Icons.access_time_rounded,
+          label: 'Time',
+          value: appointmentTime,
+        ),
+        _InfoTile(
+          icon: Icons.videocam_rounded,
+          label: 'Mode',
+          value: consultationMode,
+        ),
+        _InfoTile(
+          icon: Icons.language_rounded,
+          label: 'Language',
+          value: preferredLanguage,
+        ),
+        _InfoTile(
+          icon: Icons.medical_information_rounded,
+          label: 'Reason',
+          value: visitReason,
+        ),
+        _InfoTile(
+          icon: _paymentMethodIcon(paymentMethod),
+          label: 'Payment via',
+          value: _paymentMethodLabel(paymentMethod),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntakeCard() {
+    return _Card(
+      title: 'Care Intake',
+      icon: Icons.health_and_safety_rounded,
+      children: [
+        if (selectedSymptoms.isNotEmpty)
+          _InfoTile(
+            icon: Icons.sick_rounded,
+            label: 'Symptoms',
+            value: selectedSymptoms.join(', '),
+          ),
+        if (symptomDescription.isNotEmpty)
+          _InfoTile(
+            icon: Icons.description_rounded,
+            label: 'Description',
+            value: symptomDescription,
+          ),
+        if (careNotes.isNotEmpty)
+          _InfoTile(
+            icon: Icons.note_rounded,
+            label: 'Notes',
+            value: careNotes,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBreakdownCard(double fee) {
+    return _Card(
+      title: 'Payment Breakdown',
+      icon: Icons.receipt_long_rounded,
+      children: [
+        _BreakdownRow(
+          label: 'Consultation Fee',
+          value: 'GHS ${fee.toStringAsFixed(2)}',
+          valueColor: kTitleTextColor,
+        ),
+        _BreakdownRow(
+          label: 'Platform Fee',
+          value: '- GHS ${commissionAmount.toStringAsFixed(2)}',
+          valueColor: Colors.redAccent,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Divider(color: kTitleTextColor.withOpacity(0.08), height: 1),
+        ),
+        _BreakdownRow(
+          label: 'Doctor Receives',
+          value: 'GHS ${doctorEarnings.toStringAsFixed(2)}',
+          valueColor: Colors.green,
+          isBold: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfirmButton(double fee) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: isProcessing ? null : _completePayment,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kBlueColor,
+          disabledBackgroundColor: kBlueColor.withOpacity(0.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: isProcessing
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.5, color: Colors.white),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pay GHS ${fee.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Care Intake Summary',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (selectedSymptoms.isNotEmpty)
-                          _buildDetailRow(
-                            'Symptoms',
-                            selectedSymptoms.join(', '),
-                          ),
-                        if (symptomDescription.isNotEmpty)
-                          _buildDetailRow('Description', symptomDescription),
-                        if (careNotes.isNotEmpty)
-                          _buildDetailRow('Notes', careNotes),
-                        if (selectedSymptoms.isEmpty &&
-                            symptomDescription.isEmpty &&
-                            careNotes.isEmpty)
-                          const Text(
-                            'No additional patient notes were added for this local preview.',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Payment Breakdown',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildPaymentRow(
-                          'Consultation Fee',
-                          'GHS ${consultationFee.toStringAsFixed(2)}',
-                          Colors.black,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildPaymentRow(
-                          'Platform Commission',
-                          'GHS ${commissionAmount.toStringAsFixed(2)}',
-                          Colors.red,
-                        ),
-                        const Divider(height: 16),
-                        _buildPaymentRow(
-                          'Doctor Receives',
-                          'GHS ${doctorEarnings.toStringAsFixed(2)}',
-                          Colors.green,
-                          isBold: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isProcessing ? null : _completePayment,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kBlueColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: isProcessing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Mark Payment Complete',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
                     ),
                   ),
                 ],
               ),
-            ),
+      ),
     );
+  }
+
+  IconData _paymentMethodIcon(String id) {
+    switch (id) {
+      case 'mobile_money':
+        return Icons.phone_android_rounded;
+      case 'card':
+        return Icons.credit_card_rounded;
+      case 'bank_transfer':
+        return Icons.account_balance_rounded;
+      case 'ussd':
+        return Icons.dialpad_rounded;
+      default:
+        return Icons.payment_rounded;
+    }
   }
 
   String _paymentMethodLabel(String id) {
@@ -343,40 +424,147 @@ class _PaymentScreenState extends State<PaymentScreen> {
         return id;
     }
   }
+}
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// ── Reusable card wrapper ─────────────────────────────────────────────────────
+class _Card extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+  const _Card({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: kBlueColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: kBlueColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: kTitleTextColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...children,
         ],
       ),
     );
   }
+}
 
-  Widget _buildPaymentRow(
-    String label,
-    String value,
-    Color color, {
-    bool isBold = false,
-  }) {
+// ── Info tile row ─────────────────────────────────────────────────────────────
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 17, color: kBlueColor),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: kTitleTextColor.withOpacity(0.55),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: kTitleTextColor,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Breakdown row ─────────────────────────────────────────────────────────────
+class _BreakdownRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+  final bool isBold;
+  const _BreakdownRow({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    this.isBold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
+            fontSize: 14,
+            color: isBold ? kTitleTextColor : kTitleTextColor.withOpacity(0.65),
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            color: color,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            fontSize: 14,
+            color: valueColor,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
           ),
         ),
       ],

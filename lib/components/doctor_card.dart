@@ -18,7 +18,7 @@ class DoctorCard extends StatelessWidget {
       id: _name.toLowerCase().replaceAll(' ', '_'),
       name: _name,
       specialty: _description,
-      description: 'Local preview profile for $_name.',
+      description: _description,
       imageUrl: _imageUrl,
       consultationFee: 120,
       experience: '8 yrs',
@@ -100,7 +100,7 @@ class DoctorCard extends StatelessWidget {
                           runSpacing: 8,
                           children: [
                             _buildBadge(
-                              label: 'Preview',
+                              label: 'Live profile',
                               color: kBlueColor,
                             ),
                             _buildBadge(

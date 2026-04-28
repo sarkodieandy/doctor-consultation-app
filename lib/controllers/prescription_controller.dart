@@ -1,13 +1,14 @@
 import 'package:doctor_consultation_app/models/prescription_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
-import 'package:doctor_consultation_app/services/prescription_service.dart';
+import 'package:doctor_consultation_app/data/repositories/prescription_repository.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class PrescriptionController extends GetxController {
   final _authService = AuthService();
   final _notificationService = NotificationService();
-  final _prescriptionService = PrescriptionService();
+  final _prescriptionRepo = PrescriptionRepository();
 
   final allPrescriptions = <PrescriptionModel>[].obs;
   final activePrescriptions = <PrescriptionModel>[].obs;
@@ -22,7 +23,12 @@ class PrescriptionController extends GetxController {
   void onInit() {
     super.onInit();
     _userId = _authService.resolveUserId(fallback: Get.arguments);
-    fetchAllPrescriptions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isClosed) {
+        return;
+      }
+      fetchAllPrescriptions();
+    });
   }
 
   /// Fetch all prescriptions
@@ -30,7 +36,7 @@ class PrescriptionController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _prescriptionService.getPrescriptions(_userId ?? '');
+      final result = await _prescriptionRepo.fetchPrescriptions(_userId ?? '');
       allPrescriptions.assignAll(result);
 
       // Separate by status
@@ -49,8 +55,8 @@ class PrescriptionController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result =
-          await _prescriptionService.getActivePrescriptions(_userId ?? '');
+      final all = await _prescriptionRepo.fetchPrescriptions(_userId ?? '');
+      final result = all.where((p) => p.isActive).toList();
       activePrescriptions.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -64,8 +70,8 @@ class PrescriptionController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result =
-          await _prescriptionService.getCompletedPrescriptions(_userId ?? '');
+      final all = await _prescriptionRepo.fetchPrescriptions(_userId ?? '');
+      final result = all.where((p) => !p.isActive).toList();
       completedPrescriptions.assignAll(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -80,7 +86,7 @@ class PrescriptionController extends GetxController {
       isLoading(true);
       errorMessage(null);
       final result =
-          await _prescriptionService.getPrescriptionDetails(prescriptionId);
+          await _prescriptionRepo.getPrescriptionDetails(prescriptionId);
       selectedPrescription(result);
     } catch (e) {
       errorMessage(e.toString());
@@ -96,7 +102,7 @@ class PrescriptionController extends GetxController {
       errorMessage(null);
 
       final success =
-          await _prescriptionService.downloadPrescriptionPDF(prescriptionId);
+          await _prescriptionRepo.downloadPrescriptionPDF(prescriptionId);
 
       if (success) {
         errorMessage(null);
@@ -119,7 +125,7 @@ class PrescriptionController extends GetxController {
       isLoading(true);
       errorMessage(null);
 
-      final success = await _prescriptionService.sharePrescription(
+      final success = await _prescriptionRepo.sharePrescription(
         prescriptionId,
         recipients,
       );
@@ -138,7 +144,7 @@ class PrescriptionController extends GetxController {
     String appointmentId,
   ) async {
     try {
-      return await _prescriptionService
+      return await _prescriptionRepo
           .getPrescriptionByAppointment(appointmentId);
     } catch (e) {
       errorMessage(e.toString());

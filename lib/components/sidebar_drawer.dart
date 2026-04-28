@@ -251,12 +251,19 @@ class _SidebarDrawerState extends State<SidebarDrawer>
 
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 250 + (index * 55)),
-          curve: Curves.easeOutCubic,
+          duration: Duration(milliseconds: 180 + (index * 65)),
+          curve: Curves.easeOutBack,
           builder: (context, value, child) {
             return Transform.translate(
-              offset: Offset(-28 * (1 - value), 0),
-              child: Opacity(opacity: value, child: child),
+              offset: Offset(-48 * (1 - value), 0),
+              child: Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 0.92 + 0.08 * value,
+                  alignment: Alignment.centerLeft,
+                  child: child,
+                ),
+              ),
             );
           },
           child: Padding(
@@ -345,15 +352,15 @@ class _SidebarDrawerState extends State<SidebarDrawer>
             width: double.infinity,
             height: 52,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xffF45B5B), Color(0xffD94040)],
+              gradient: LinearGradient(
+                colors: [kBlueColor, Color(0xff2351C1)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xffF45B5B).withOpacity(0.3),
+                  color: kBlueColor.withOpacity(0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

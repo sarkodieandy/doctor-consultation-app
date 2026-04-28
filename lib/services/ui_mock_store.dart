@@ -9,14 +9,15 @@ import 'package:doctor_consultation_app/models/prescription_model.dart';
 import 'package:doctor_consultation_app/models/review_model.dart';
 import 'package:doctor_consultation_app/models/user_model.dart';
 
-class LocalBackendStore {
-  LocalBackendStore._internal() {
+class UiMockStore {
+  UiMockStore._internal() {
     _seed();
   }
 
-  static final LocalBackendStore instance = LocalBackendStore._internal();
+  static final UiMockStore instance = UiMockStore._internal();
 
   final Map<String, String> passwordsByEmail = {};
+  final Map<String, String> loginAliases = {};
   final Map<String, Map<String, String>> payoutProfiles = {};
   final Map<String, Map<String, dynamic>> verifications = {};
   final Map<String, String> chatPatientsById = {};
@@ -62,6 +63,30 @@ class LocalBackendStore {
     } catch (_) {
       return null;
     }
+  }
+
+  String? resolveEmailFromLogin(String login) {
+    final normalized = login.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+
+    if (normalized.contains('@')) {
+      return normalized;
+    }
+
+    final aliasEmail = loginAliases[normalized];
+    if (aliasEmail != null) {
+      return aliasEmail.toLowerCase();
+    }
+
+    for (final user in users) {
+      final userEmail = user.email.toLowerCase();
+      final localPart = userEmail.split('@').first;
+      if (localPart == normalized) {
+        return userEmail;
+      }
+    }
+
+    return null;
   }
 
   DoctorModel? findDoctorById(String id) {
@@ -188,7 +213,12 @@ class LocalBackendStore {
     users.addAll([patient, doctor, admin]);
     passwordsByEmail['patient@test.com'] = 'Test1234!';
     passwordsByEmail['doctor@test.com'] = 'Test1234!';
-    passwordsByEmail['admin@test.com'] = 'Test1234!';
+    passwordsByEmail['admin@test.com'] = 'Password@123';
+
+    loginAliases['testadmin'] = 'admin@test.com';
+    loginAliases['admin'] = 'admin@test.com';
+    loginAliases['patient'] = 'patient@test.com';
+    loginAliases['doctor'] = 'doctor@test.com';
 
     reviews.add(
       ReviewModel(

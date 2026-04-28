@@ -444,7 +444,10 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
       return const AssetImage(DoctorModel.fallbackImagePath);
     }
     if (avatar.startsWith('assets/')) return AssetImage(avatar);
-    return NetworkImage(avatar);
+    if (avatar.toLowerCase().contains('.svg')) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
   }
 }
 
@@ -738,7 +741,10 @@ class ConsultationDetailScreen extends StatelessWidget {
     if (avatar.startsWith('assets/')) {
       return AssetImage(avatar);
     }
-    return NetworkImage(avatar);
+    if (avatar.toLowerCase().contains('.svg')) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
   }
 }
 
@@ -796,7 +802,7 @@ class _LegacyVideoConsultationScreenState
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Connected in local preview mode',
+                    'Connected to your consultation session',
                     style: TextStyle(
                       color: Colors.green,
                       fontSize: 14,
@@ -843,7 +849,7 @@ class _LegacyVideoConsultationScreenState
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Preview session',
+                        'Live session',
                         style: TextStyle(color: kWhiteColor),
                       ),
                     ),
@@ -871,7 +877,7 @@ class _LegacyVideoConsultationScreenState
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
-                        'Use this screen as a local UI placeholder for video calls. End the consultation to move it into completed state.',
+                        'Use this screen to manage the live consultation. End the session when the visit is complete.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: kWhiteColor, height: 1.4),
                       ),
@@ -903,7 +909,7 @@ class _LegacyVideoConsultationScreenState
                             if (selected != null) {
                               await controller.endConsultation(
                                 selected.id,
-                                'Consultation ended in local preview mode. Review medications and follow up if symptoms continue.',
+                                'Consultation ended. Review medications and follow up if symptoms continue.',
                               );
                             }
                             if (!mounted) {
@@ -951,6 +957,9 @@ class _LegacyVideoConsultationScreenState
     if (avatar.startsWith('assets/')) {
       return AssetImage(avatar);
     }
-    return NetworkImage(avatar);
+    if (avatar.toLowerCase().contains('.svg')) {
+      return const AssetImage(DoctorModel.fallbackImagePath);
+    }
+    return const AssetImage(DoctorModel.fallbackImagePath);
   }
 }

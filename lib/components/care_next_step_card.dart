@@ -324,7 +324,7 @@ class CareNextStepCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Stack(
         children: [
-          Image.network(
+          Image.asset(
             item.imageUrl,
             width: 78,
             height: 92,
@@ -339,25 +339,6 @@ class CareNextStepCard extends StatelessWidget {
                   iconForType(item.type),
                   color: accentColor,
                   size: 22,
-                ),
-              );
-            },
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) {
-                return child;
-              }
-              return Container(
-                width: 78,
-                height: 92,
-                color: kBackgroundColor,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(accentColor),
-                  ),
                 ),
               );
             },

@@ -1,24 +1,22 @@
 import 'package:doctor_consultation_app/models/consultation_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
-class AgoraService {
-  static final AgoraService _instance = AgoraService._internal();
+class CallPreviewService {
+  static final CallPreviewService _instance = CallPreviewService._internal();
 
-  factory AgoraService() {
+  factory CallPreviewService() {
     return _instance;
   }
 
-  AgoraService._internal();
+  CallPreviewService._internal();
 
-  static const String agoraAppId = 'local-preview';
-
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   Future<String> getToken({
     required String channelId,
     required String userId,
   }) async {
-    return 'local-token-$channelId-$userId';
+    return 'preview-session-$channelId-$userId';
   }
 
   Future<bool> startConsultation({

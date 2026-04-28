@@ -45,7 +45,7 @@ class PrescriptionModel {
     return PrescriptionModel(
       id: (json['id'] ?? '').toString(),
       doctorId: (json['doctor_id'] ?? json['doctorId'] ?? '').toString(),
-      doctorName: json['doctor_name'] ?? json['doctorName'] ?? '',
+      doctorName: (json['doctor_name'] ?? json['doctorName'] ?? '').toString(),
       appointmentId:
           (json['appointment_id'] ?? json['appointmentId'] ?? '').toString(),
       patientId: (json['patient_id'] ?? '').toString(),
@@ -56,9 +56,10 @@ class PrescriptionModel {
           ? DateTime.parse(json['expiry_date'] ?? json['expiryDate'])
           : null,
       medicines: medicines ?? [],
-      notes: json['notes'] ?? '',
-      status: json['status'] ?? 'active',
-      attachmentUrl: json['attachment_url'] ?? json['attachmentUrl'],
+      notes: (json['notes'] ?? '').toString(),
+      status: (json['status'] ?? 'active').toString(),
+      attachmentUrl:
+          (json['attachment_url'] ?? json['attachmentUrl'])?.toString(),
     );
   }
 
@@ -131,11 +132,11 @@ class Medicine {
     return Medicine(
       id: (json['id'] ?? '').toString(),
       prescriptionId: (json['prescription_id'] ?? '').toString(),
-      name: json['name'] ?? '',
-      dosage: json['dosage'] ?? '',
-      frequency: json['frequency'] ?? '',
-      duration: json['duration'] ?? 0,
-      instructions: json['instructions'] ?? '',
+      name: (json['name'] ?? '').toString(),
+      dosage: (json['dosage'] ?? '').toString(),
+      frequency: (json['frequency'] ?? '').toString(),
+      duration: int.tryParse((json['duration'] ?? 0).toString()) ?? 0,
+      instructions: (json['instructions'] ?? '').toString(),
       sideEffects:
           List<String>.from(json['side_effects'] ?? json['sideEffects'] ?? []),
     );

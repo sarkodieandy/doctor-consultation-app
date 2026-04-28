@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -32,8 +32,9 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _agreeToTerms = false;
   String? _errorMessage;
   bool _isDoctor = false;
-  String? _licenseDocumentPath;
-  File? _profilePictureFile;
+  PlatformFile? _licenseDocumentFile;
+  XFile? _profilePictureFile;
+  Uint8List? _profilePictureBytes;
 
   final _authService = AuthService();
   final _imagePicker = ImagePicker();
@@ -75,11 +76,12 @@ class _SignupScreenState extends State<SignupScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
         allowMultiple: false,
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
+      if (result != null) {
         setState(() {
-          _licenseDocumentPath = result.files.single.path!;
+          _licenseDocumentFile = result.files.single;
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -117,8 +119,10 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
         setState(() {
-          _profilePictureFile = File(pickedFile.path);
+          _profilePictureFile = pickedFile;
+          _profilePictureBytes = bytes;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -182,7 +186,7 @@ class _SignupScreenState extends State<SignupScreen> {
         });
         return;
       }
-      if (_licenseDocumentPath == null) {
+      if (_licenseDocumentFile == null) {
         setState(() {
           _errorMessage = 'Please upload your medical license document';
         });
@@ -209,7 +213,9 @@ class _SignupScreenState extends State<SignupScreen> {
           experience: _experienceController.text.trim(),
           consultationFee:
               double.tryParse(_consultationFeeController.text.trim()) ?? 0.0,
-          licenseDocumentPath: _licenseDocumentPath!,
+          licenseDocumentPath:
+              _licenseDocumentFile?.path ?? _licenseDocumentFile?.name ?? '',
+          licenseDocumentFile: _licenseDocumentFile,
           bio: _bioController.text.trim(),
           profilePictureFile: _profilePictureFile,
         );
@@ -500,10 +506,13 @@ class _SignupScreenState extends State<SignupScreen> {
                                     height: 60,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
-                                      image: DecorationImage(
-                                        image: FileImage(_profilePictureFile!),
-                                        fit: BoxFit.cover,
-                                      ),
+                                      image: _profilePictureBytes != null
+                                          ? DecorationImage(
+                                              image: MemoryImage(
+                                                  _profilePictureBytes!),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
                                     ),
                                   ),
                                   SizedBox(width: 16),
@@ -522,7 +531,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                         SizedBox(height: 4),
                                         Text(
                                           _profilePictureFile!.path
-                                              .split('/')
+                                              .split(RegExp(r'[\\/]+'))
                                               .last,
                                           style: TextStyle(
                                             color: kSearchTextColor,
@@ -710,7 +719,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             color: kSearchBackgroundColor,
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
-                              color: _licenseDocumentPath != null
+                              color: _licenseDocumentFile != null
                                   ? kBlueColor
                                   : Colors.transparent,
                               width: 1.5,
@@ -719,25 +728,25 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Column(
                             children: [
                               Icon(
-                                _licenseDocumentPath != null
+                                _licenseDocumentFile != null
                                     ? Icons.check_circle
                                     : Icons.cloud_upload_outlined,
-                                color: _licenseDocumentPath != null
+                                color: _licenseDocumentFile != null
                                     ? kBlueColor
                                     : kSearchTextColor,
                                 size: 40,
                               ),
                               SizedBox(height: 8),
                               Text(
-                                _licenseDocumentPath != null
-                                    ? _licenseDocumentPath!.split('/').last
+                                _licenseDocumentFile != null
+                                    ? _licenseDocumentFile!.name
                                     : 'Tap to upload license (PDF/Image)',
                                 style: TextStyle(
-                                  color: _licenseDocumentPath != null
+                                  color: _licenseDocumentFile != null
                                       ? kBlueColor
                                       : kSearchTextColor,
                                   fontSize: 13,
-                                  fontWeight: _licenseDocumentPath != null
+                                  fontWeight: _licenseDocumentFile != null
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
@@ -745,7 +754,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 2,
                               ),
-                              if (_licenseDocumentPath != null) ...[
+                              if (_licenseDocumentFile != null) ...[
                                 SizedBox(height: 4),
                                 Text(
                                   'Tap to change',

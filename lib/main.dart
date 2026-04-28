@@ -24,7 +24,7 @@ import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/notifications_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
-import 'package:doctor_consultation_app/screens/paystack_checkout_screen.dart';
+import 'package:doctor_consultation_app/screens/payment_method_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
 import 'package:doctor_consultation_app/screens/reviews_screen.dart';
@@ -95,8 +95,8 @@ class MyApp extends StatelessWidget {
           binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
-          name: '/paystack-checkout',
-          page: () => PaystackCheckoutScreen(),
+          name: '/payment-method',
+          page: () => PaymentMethodScreen(),
           binding: BindingsBuilder(ensureAppointmentController),
         ),
         GetPage(
@@ -139,6 +139,11 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/chat-detail',
           page: () => ChatDetailScreen(),
+          binding: BindingsBuilder(() {
+            if (!Get.isRegistered<ChatController>()) {
+              Get.lazyPut<ChatController>(() => ChatController());
+            }
+          }),
         ),
         // Health Records Route
         GetPage(

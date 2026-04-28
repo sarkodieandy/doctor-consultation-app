@@ -3,12 +3,12 @@ import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class PaystackCheckoutScreen extends StatefulWidget {
+class PaymentMethodScreen extends StatefulWidget {
   @override
-  State<PaystackCheckoutScreen> createState() => _PaystackCheckoutScreenState();
+  State<PaymentMethodScreen> createState() => _PaymentMethodScreenState();
 }
 
-class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
+class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   late Map<String, dynamic> args;
   late DoctorModel doctor;
   String? selectedMethod;
@@ -19,7 +19,7 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
       label: 'Mobile Money',
       subtitle: 'MTN, Vodafone, AirtelTigo',
       icon: Icons.phone_android_rounded,
-      color: Color(0xff00C48C),
+      color: Color(0xff42A5F5),
     ),
     _PaymentMethod(
       id: 'card',
@@ -65,10 +65,9 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
     final fee = doctor.consultationFee;
 
     return Scaffold(
-      backgroundColor: const Color(0xff011B33),
+      backgroundColor: kBlueColor,
       body: Column(
         children: [
-          // ── Paystack header ──────────────────────────────
           SafeArea(
             bottom: false,
             child: Padding(
@@ -82,19 +81,18 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 12),
-                  // Paystack wordmark
                   Row(
                     children: [
                       Container(
                         width: 28,
                         height: 28,
-                        decoration: const BoxDecoration(
-                          color: Color(0xff00C48C),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.25),
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
                           child: Text(
-                            'P',
+                            'D',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -105,7 +103,7 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
                       ),
                       const SizedBox(width: 6),
                       const Text(
-                        'Paystack',
+                        'DocConsult',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -126,12 +124,12 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.lock_outline,
-                            size: 12, color: Color(0xff00C48C)),
+                            size: 12, color: Colors.white70),
                         const SizedBox(width: 4),
                         const Text(
                           'Secured',
                           style: TextStyle(
-                              color: Color(0xff00C48C),
+                              color: Colors.white70,
                               fontSize: 11,
                               fontWeight: FontWeight.w600),
                         ),
@@ -142,8 +140,6 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
               ),
             ),
           ),
-
-          // ── Amount + merchant ────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
             child: Column(
@@ -182,10 +178,7 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
               ],
             ),
           ),
-
           const SizedBox(height: 28),
-
-          // ── Payment methods sheet ───────────────────────
           Expanded(
             child: Container(
               decoration: const BoxDecoration(

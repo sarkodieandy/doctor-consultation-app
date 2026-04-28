@@ -358,7 +358,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Appointment reminders, payment updates, and follow-up prompts will appear here in local preview mode.',
+              'Appointment reminders, payment updates, and follow-up prompts appear here in the UI preview.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 height: 1.45,

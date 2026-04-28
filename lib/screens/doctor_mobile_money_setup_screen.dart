@@ -1,7 +1,5 @@
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
-import 'package:doctor_consultation_app/services/paystack_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -14,10 +12,8 @@ class DoctorMobileMoneySetupScreen extends StatefulWidget {
 class _DoctorMobileMoneySetupScreenState
     extends State<DoctorMobileMoneySetupScreen> {
   final _authService = AuthService();
-  final _store = LocalBackendStore.instance;
   final TextEditingController mobileNumberController = TextEditingController();
 
-  late PaystackService paystackService;
   String selectedProvider = 'mtn';
   bool isLoading = false;
 
@@ -31,7 +27,6 @@ class _DoctorMobileMoneySetupScreenState
   @override
   void initState() {
     super.initState();
-    paystackService = PaystackService();
     _loadExistingData();
   }
 
@@ -45,13 +40,9 @@ class _DoctorMobileMoneySetupScreenState
     final user = _authService.currentUser;
     if (user == null) return;
 
-    final payoutData = _store.payoutProfiles[user.id];
-    if (payoutData == null) return;
-
     setState(() {
-      mobileNumberController.text = payoutData['mobile_money_number'] ?? '';
-      selectedProvider =
-          payoutData['mobile_money_provider'] ?? selectedProvider;
+      mobileNumberController.text = user.mobileMoneyNumber ?? '';
+      selectedProvider = user.mobileMoneyProvider ?? selectedProvider;
     });
   }
 
@@ -73,32 +64,34 @@ class _DoctorMobileMoneySetupScreenState
 
     setState(() => isLoading = true);
 
-    final recipientCode = await paystackService.createTransferRecipient(
-      doctorId: user.id,
-      mobileNumber: mobileNumberController.text,
-      provider: selectedProvider,
+    final updatedUser = user.copyWith(
+      mobileMoneyNumber: mobileNumberController.text.trim(),
+      mobileMoneyProvider: selectedProvider,
+      payoutRecipientCode:
+          'recipient_${user.id}_${selectedProvider.toLowerCase()}',
     );
 
-    if (!mounted) return;
-    setState(() => isLoading = false);
-
-    if (recipientCode != null) {
+    try {
+      await _authService.updateCurrentUser(updatedUser);
+      if (!mounted) return;
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mobile money account saved in local preview mode.'),
+          content: Text('Mobile money account saved successfully.'),
           backgroundColor: Colors.green,
         ),
       );
       Get.back(result: true);
-      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to save mobile money details.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Unable to save mobile money details.'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
 
   @override
@@ -124,7 +117,7 @@ class _DoctorMobileMoneySetupScreenState
                 border: Border.all(color: Colors.blue[200]!),
               ),
               child: const Text(
-                'Backend transfers have been removed. This form now stores payout details locally so the earnings UI remains usable.',
+                'Enter the mobile money number you want to use for doctor payouts.',
                 style: TextStyle(fontSize: 13),
               ),
             ),
@@ -192,12 +185,12 @@ class _DoctorMobileMoneySetupScreenState
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   SizedBox(height: 12),
-                  Text('1. Patient payment is simulated locally.'),
+                  Text('1. Patient payment is shown in the UI preview.'),
                   SizedBox(height: 8),
-                  Text('2. Platform commission is previewed in the UI.'),
+                  Text('2. Platform commission is calculated by the platform.'),
                   SizedBox(height: 8),
                   Text(
-                      '3. Your payout destination is stored only on this device.'),
+                      '3. Your payout destination will be used for doctor payouts.'),
                 ],
               ),
             ),

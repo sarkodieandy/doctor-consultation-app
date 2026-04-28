@@ -102,15 +102,7 @@ class CategoryCard extends StatelessWidget {
 
   Widget _buildImage() {
     if (_imageUrl.startsWith('http://') || _imageUrl.startsWith('https://')) {
-      return Image.network(
-        _imageUrl,
-        width: double.infinity,
-        height: 104,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildFallbackImage();
-        },
-      );
+      return _buildFallbackImage();
     }
 
     return Container(

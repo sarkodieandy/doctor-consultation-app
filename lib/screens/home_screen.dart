@@ -42,9 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       _notificationController = Get.put(NotificationController());
     }
-    _controller.fetchDoctors();
-    _careTimelineController.fetchTimeline();
-    _notificationController.fetchNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.fetchDoctors();
+      _careTimelineController.fetchTimeline();
+      _notificationController.fetchNotifications();
+    });
   }
 
   void _onSearch(String query) {
@@ -78,14 +80,27 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: kBackgroundColor,
       body: Stack(
         children: [
-          // Full-screen transparent background watermark
+          // Animated, more visible doctor background
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.07,
-              child: Image.asset(
-                'assets/images/doctorbg.png',
-                fit: BoxFit.cover,
-              ),
+            child: Image.asset(
+              'assets/images/doctorbg.png',
+              fit: BoxFit.cover,
+            )
+                .animate()
+                .fadeIn(duration: 1200.ms)
+                .scale(
+                    begin: const Offset(1.05, 1.05),
+                    end: Offset(1, 1),
+                    duration: 2200.ms)
+                .shimmer(
+                    delay: 400.ms,
+                    duration: 1800.ms,
+                    color: Colors.white.withOpacity(0.12)),
+          ),
+          // Semi-transparent overlay for better contrast
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withOpacity(0.70),
             ),
           ),
           SafeArea(
@@ -426,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Stack(
                     children: [
-                      Image.network(
+                      Image.asset(
                         item.imageUrl,
                         width: double.infinity,
                         height: 96,
@@ -821,7 +836,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(18),
                   ),
-                  child: Image.network(
+                  child: Image.asset(
                     program.imageUrl,
                     width: double.infinity,
                     height: 108,

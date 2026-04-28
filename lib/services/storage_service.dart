@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 class StorageService {
   static final StorageService _instance = StorageService._internal();
@@ -13,10 +14,12 @@ class StorageService {
 
   Future<String?> uploadDoctorLicense(
     String doctorId,
-    File licenseFile,
+    PlatformFile licenseFile,
     String fileName,
   ) async {
-    return 'local://doctor_licenses/$doctorId/$fileName';
+    final resolvedName =
+        licenseFile.name.isNotEmpty ? licenseFile.name : fileName;
+    return 'local://doctor_licenses/$doctorId/$resolvedName';
   }
 
   Future<String?> getLicenseDownloadUrl(String storagePath) async {
@@ -37,7 +40,7 @@ class StorageService {
 
   Future<String?> uploadProfileImage(
     String userId,
-    File imageFile,
+    XFile imageFile,
   ) async {
     return imageFile.path;
   }

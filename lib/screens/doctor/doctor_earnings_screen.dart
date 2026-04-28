@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class DoctorEarningsScreen extends StatelessWidget {
-  // Mock earnings data - REMOVED for real testing
-  // Real earnings will load from Supabase
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,7 +42,7 @@ class DoctorEarningsScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'Real earnings data will appear here\nafter your first consultation',
+              'Earnings data will appear here after your first completed consultation',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,

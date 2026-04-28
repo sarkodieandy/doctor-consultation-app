@@ -1,5 +1,5 @@
 import 'package:doctor_consultation_app/models/consultation_model.dart';
-import 'package:doctor_consultation_app/services/local_backend_store.dart';
+import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 
 class ConsultationService {
   static final ConsultationService _instance = ConsultationService._internal();
@@ -9,7 +9,7 @@ class ConsultationService {
   }
 
   ConsultationService._internal();
-  final _store = LocalBackendStore.instance;
+  final _store = UiMockStore.instance;
 
   /// Get all consultations
   Future<List<ConsultationModel>> getConsultations(String userId) async {
@@ -136,7 +136,7 @@ class ConsultationService {
 
   /// Generate meeting link
   Future<String?> generateMeetingLink(String consultationId) async {
-    return 'https://videocall.example.com/room/$consultationId';
+    return 'preview-room://$consultationId';
   }
 
   /// Get consultation by appointment

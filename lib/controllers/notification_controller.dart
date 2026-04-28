@@ -1,11 +1,12 @@
 import 'package:doctor_consultation_app/models/notification_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
-import 'package:doctor_consultation_app/services/notification_service.dart';
+import 'package:doctor_consultation_app/data/repositories/notification_repository.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class NotificationController extends GetxController {
   final _authService = AuthService();
-  final _notificationService = NotificationService();
+  final _notificationRepo = NotificationRepository();
 
   final notifications = <NotificationModel>[].obs;
   final isLoading = false.obs;
@@ -18,7 +19,12 @@ class NotificationController extends GetxController {
   void onInit() {
     super.onInit();
     _userId = _authService.resolveUserId(fallback: Get.arguments);
-    fetchNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isClosed) {
+        return;
+      }
+      fetchNotifications();
+    });
   }
 
   Future<void> refresh() async {
@@ -34,7 +40,7 @@ class NotificationController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _notificationService.getNotifications(userId);
+      final result = await _notificationRepo.fetchNotifications(userId);
       notifications.assignAll(result);
       unreadCount.value =
           result.where((notification) => !notification.isRead).length;
@@ -46,7 +52,7 @@ class NotificationController extends GetxController {
   }
 
   Future<void> markAsRead(String notificationId) async {
-    await _notificationService.markNotificationAsRead(notificationId);
+    await _notificationRepo.markAsRead(notificationId);
     await fetchNotifications();
   }
 
@@ -56,7 +62,7 @@ class NotificationController extends GetxController {
       return;
     }
 
-    await _notificationService.markAllAsRead(userId);
+    await _notificationRepo.markAllAsRead(userId);
     await fetchNotifications();
   }
 

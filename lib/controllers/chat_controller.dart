@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:doctor_consultation_app/models/chat_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
-import 'package:doctor_consultation_app/services/chat_service.dart';
+// local ChatService removed; using ChatRepository instead
+import 'package:doctor_consultation_app/data/repositories/chat_repository.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class ChatController extends GetxController {
   final _authService = AuthService();
-  final _chatService = ChatService();
+  final _chatRepo = ChatRepository();
 
   final chats = <ChatModel>[].obs;
   final messages = <MessageModel>[].obs;
@@ -34,7 +36,12 @@ class ChatController extends GetxController {
   void onInit() {
     super.onInit();
     _userId = _authService.resolveUserId(fallback: Get.arguments);
-    fetchChats();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isClosed) {
+        return;
+      }
+      fetchChats();
+    });
   }
 
   /// Fetch all chats
@@ -42,7 +49,13 @@ class ChatController extends GetxController {
     try {
       isLoading(true);
       errorMessage(null);
-      final result = await _chatService.getChats(_userId ?? '');
+      List<ChatModel> result;
+      if (isDoctorUser) {
+        result = await _chatRepo.getChatsForDoctor(_userId ?? '');
+      } else {
+        result = await _chatRepo.fetchConversations(_userId ?? '');
+      }
+
       chats.assignAll(result);
       unreadCount(result.fold<int>(0, (sum, chat) => sum + chat.unreadCount));
     } catch (e) {
@@ -58,9 +71,9 @@ class ChatController extends GetxController {
       selectedChat(chat);
       isLoading(true);
       errorMessage(null);
-      final result = await _chatService.getMessages(chat.id);
+      var result = await _chatRepo.fetchMessages(chat.id);
       messages.assignAll(result);
-      await _chatService.markMessagesAsRead(chat.id);
+      await _chatRepo.markMessagesAsRead(chat.id);
       await _refreshPeerTypingStatus();
       _startPeerTypingPolling();
     } catch (e) {
@@ -80,8 +93,7 @@ class ChatController extends GetxController {
     final shouldShowTyping = input.trim().isNotEmpty;
     if (isCurrentUserTyping.value != shouldShowTyping) {
       isCurrentUserTyping(shouldShowTyping);
-      await _chatService.setTypingStatus(
-          activeChat.id, userId, shouldShowTyping);
+      await _chatRepo.setTypingStatus(activeChat.id, userId, shouldShowTyping);
     }
 
     _typingDebounceTimer?.cancel();
@@ -103,7 +115,7 @@ class ChatController extends GetxController {
     }
 
     isCurrentUserTyping(false);
-    await _chatService.clearTypingStatus(activeChat.id, userId);
+    await _chatRepo.clearTypingStatus(activeChat.id, userId);
   }
 
   void _startPeerTypingPolling() {
@@ -122,7 +134,7 @@ class ChatController extends GetxController {
       return;
     }
     final peerTyping =
-        await _chatService.getPeerTypingStatus(activeChat.id, userId);
+        await _chatRepo.getPeerTypingStatus(activeChat.id, userId);
     isPeerTyping(peerTyping);
   }
 
@@ -133,12 +145,14 @@ class ChatController extends GetxController {
 
       await stopTyping();
 
-      final success = await _chatService.sendMessage(
+      final success = await _chatRepo.sendMessage(
         selectedChat.value!.id,
-        _userId ?? '',
-        'You',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-        messageText,
+        {
+          'senderId': _userId ?? '',
+          'senderName': 'You',
+          'senderAvatar': 'assets/images/doctor1.png',
+          'message': messageText,
+        },
       );
 
       if (success) {
@@ -161,7 +175,7 @@ class ChatController extends GetxController {
       isLoading(true);
       errorMessage(null);
 
-      final newChat = await _chatService.startChat(
+      final newChat = await _chatRepo.startChat(
         doctorId,
         doctorName,
         doctorAvatar,
@@ -191,7 +205,7 @@ class ChatController extends GetxController {
       if (query.isEmpty) {
         await fetchChats();
       } else {
-        final result = await _chatService.searchChats(query);
+        final result = await _chatRepo.searchChats(query);
         chats.assignAll(result);
       }
     } catch (e) {
