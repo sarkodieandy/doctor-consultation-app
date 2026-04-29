@@ -5,7 +5,7 @@ class DoctorRepository {
   final UiDataService _local = UiDataService();
 
   Future<List<DoctorModel>> fetchDoctors({Map<String, dynamic>? params}) async {
-    return await _local.getDoctors();
+    return await _local.getDoctors(params: params);
   }
 
   Future<DoctorModel?> getDoctorById(String id) async {
@@ -17,7 +17,6 @@ class DoctorRepository {
   }
 
   Future<List<String>> getAvailability(String doctorId) async {
-    // Local store: use doctor availableTimes
     final doctor = await _local.getDoctorById(doctorId);
     return doctor?.availableTimes ?? [];
   }

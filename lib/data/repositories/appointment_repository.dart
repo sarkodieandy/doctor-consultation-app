@@ -12,13 +12,15 @@ class AppointmentRepository {
     required DateTime appointmentDate,
     required String timeSlot,
   }) async {
-    // UI-only: Use local/mock data
-    await _local.bookAppointment(userId, doctorId, appointmentDate, timeSlot);
-    return null;
+    return _local.bookAppointment(
+      userId,
+      doctorId,
+      appointmentDate,
+      timeSlot,
+    );
   }
 
   Future<List<AppointmentModel>> fetchUserAppointments(String userId) async {
-    // UI-only: Use local/mock data
     return await _local.getUserAppointments(userId);
   }
 
@@ -29,13 +31,11 @@ class AppointmentRepository {
   }
 
   Future<List<AppointmentModel>> fetchDoctorAppointments() async {
-    // UI-only: Use local/mock data
     final doctorId = _authService.currentUser?.id ?? '';
     return _local.getDoctorAppointments(doctorId);
   }
 
   Future<bool> cancelAppointment(String appointmentId, String userId) async {
-    // UI-only: Use local/mock data
     return await _local.cancelAppointment(appointmentId, userId);
   }
 
@@ -46,18 +46,15 @@ class AppointmentRepository {
   }
 
   Future<bool> approveAppointment(String appointmentId, String doctorId) async {
-    // UI-only: Use local/mock data
     return await _local.approveAppointment(appointmentId, doctorId);
   }
 
   Future<bool> rejectAppointment(String appointmentId, String doctorId) async {
-    // UI-only: Use local/mock data
     return await _local.rejectAppointment(appointmentId, doctorId);
   }
 
   Future<bool> completeAppointment(
       String appointmentId, String doctorId) async {
-    // UI-only: Use local/mock data
     return await _local.completeAppointment(appointmentId, doctorId);
   }
 }

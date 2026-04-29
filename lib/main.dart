@@ -6,6 +6,7 @@ import 'package:doctor_consultation_app/controllers/health_record_controller.dar
 import 'package:doctor_consultation_app/controllers/notification_controller.dart';
 import 'package:doctor_consultation_app/controllers/prescription_controller.dart';
 import 'package:doctor_consultation_app/controllers/review_controller.dart';
+import 'package:doctor_consultation_app/config/supabase_config.dart';
 import 'package:doctor_consultation_app/screens/booking_screen.dart';
 import 'package:doctor_consultation_app/screens/care_timeline_screen.dart';
 import 'package:doctor_consultation_app/screens/chat_screen.dart';
@@ -29,10 +30,14 @@ import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
 import 'package:doctor_consultation_app/screens/reviews_screen.dart';
 import 'package:doctor_consultation_app/screens/splash_screen.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
+import 'package:doctor_consultation_app/services/ui_data_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void ensureAppointmentController() {
   if (!Get.isRegistered<AppointmentController>()) {
@@ -43,6 +48,11 @@ void ensureAppointmentController() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
+
   final notificationService = NotificationService();
   await notificationService.initialize();
   runApp(MyApp());
@@ -51,211 +61,220 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      defaultTransition: Transition.rightToLeftWithFade,
-      transitionDuration: const Duration(milliseconds: 280),
-      popGesture: true,
-      theme: ThemeData(
-        textTheme:
-            GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
-        appBarTheme: const AppBarTheme(
-          iconTheme: IconThemeData(size: 24),
-        ),
-      ),
-      initialRoute: '/splash',
-      getPages: [
-        GetPage(
-          name: '/splash',
-          page: () => SplashScreen(),
-        ),
-        GetPage(
-          name: '/login',
-          page: () => LoginScreen(),
-        ),
-        GetPage(
-          name: '/signup',
-          page: () => SignupScreen(),
-        ),
-        GetPage(
-          name: '/home',
-          page: () => HomeScreen(),
-          binding: BindingsBuilder(ensureAppointmentController),
-        ),
-        GetPage(
-          name: '/booking',
-          page: () => BookingScreen(
-            doctor: Get.arguments,
+    return MultiProvider(
+      providers: [
+        Provider<AuthService>.value(value: AuthService()),
+        Provider<UiDataService>(create: (_) => UiDataService()),
+      ],
+      child: GetMaterialApp(
+        debugShowCheckedModeBanner: false,
+        defaultTransition: Transition.rightToLeftWithFade,
+        transitionDuration: const Duration(milliseconds: 280),
+        popGesture: true,
+        theme: ThemeData(
+          textTheme:
+              GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
+          appBarTheme: const AppBarTheme(
+            iconTheme: IconThemeData(size: 24),
           ),
-          binding: BindingsBuilder(ensureAppointmentController),
         ),
-        GetPage(
-          name: '/payment',
-          page: () => PaymentScreen(),
-          binding: BindingsBuilder(ensureAppointmentController),
-        ),
-        GetPage(
-          name: '/payment-method',
-          page: () => PaymentMethodScreen(),
-          binding: BindingsBuilder(ensureAppointmentController),
-        ),
-        GetPage(
-          name: '/appointments',
-          page: () => MyAppointmentsScreen(),
-          binding: BindingsBuilder(ensureAppointmentController),
-        ),
-        GetPage(
-          name: '/profile',
-          page: () => ProfileScreen(),
-        ),
-        GetPage(
-          name: '/notifications',
-          page: () => NotificationsScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<NotificationController>()) {
-              Get.lazyPut<NotificationController>(
-                  () => NotificationController());
-            }
-          }),
-        ),
-        GetPage(
-          name: '/care-timeline',
-          page: () => CareTimelineScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<CareTimelineController>()) {
-              Get.lazyPut<CareTimelineController>(
-                  () => CareTimelineController());
-            }
-          }),
-        ),
-        // Chat Routes
-        GetPage(
-          name: '/chat',
-          page: () => ChatScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<ChatController>(() => ChatController());
-          }),
-        ),
-        GetPage(
-          name: '/chat-detail',
-          page: () => ChatDetailScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<ChatController>()) {
+        initialRoute: '/splash',
+        getPages: [
+          GetPage(
+            name: '/splash',
+            page: () => SplashScreen(),
+          ),
+          GetPage(
+            name: '/login',
+            page: () => LoginScreen(),
+          ),
+          GetPage(
+            name: '/signup',
+            page: () => SignupScreen(),
+          ),
+          GetPage(
+            name: '/home',
+            page: () => HomeScreen(),
+            binding: BindingsBuilder(ensureAppointmentController),
+          ),
+          GetPage(
+            name: '/booking',
+            page: () => BookingScreen(
+              doctor: Get.arguments,
+            ),
+            binding: BindingsBuilder(ensureAppointmentController),
+          ),
+          GetPage(
+            name: '/payment',
+            page: () => PaymentScreen(),
+            binding: BindingsBuilder(ensureAppointmentController),
+          ),
+          GetPage(
+            name: '/payment-method',
+            page: () => PaymentMethodScreen(),
+            binding: BindingsBuilder(ensureAppointmentController),
+          ),
+          GetPage(
+            name: '/appointments',
+            page: () => MyAppointmentsScreen(),
+            binding: BindingsBuilder(ensureAppointmentController),
+          ),
+          GetPage(
+            name: '/profile',
+            page: () => ProfileScreen(),
+          ),
+          GetPage(
+            name: '/notifications',
+            page: () => NotificationsScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<NotificationController>()) {
+                Get.lazyPut<NotificationController>(
+                    () => NotificationController());
+              }
+            }),
+          ),
+          GetPage(
+            name: '/care-timeline',
+            page: () => CareTimelineScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<CareTimelineController>()) {
+                Get.lazyPut<CareTimelineController>(
+                    () => CareTimelineController());
+              }
+            }),
+          ),
+          // Chat Routes
+          GetPage(
+            name: '/chat',
+            page: () => ChatScreen(),
+            binding: BindingsBuilder(() {
               Get.lazyPut<ChatController>(() => ChatController());
-            }
-          }),
-        ),
-        // Health Records Route
-        GetPage(
-          name: '/health-records',
-          page: () => HealthRecordsScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<HealthRecordController>(() => HealthRecordController());
-          }),
-        ),
-        // Prescriptions Routes
-        GetPage(
-          name: '/prescriptions',
-          page: () => PrescriptionsScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<PrescriptionController>(() => PrescriptionController());
-          }),
-        ),
-        GetPage(
-          name: '/prescription-detail',
-          page: () => PrescriptionDetailScreen(),
-        ),
-        // Consultations Routes
-        GetPage(
-          name: '/consultations',
-          page: () => ConsultationScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<ConsultationController>(() => ConsultationController());
-          }),
-        ),
-        GetPage(
-          name: '/consultation-detail',
-          page: () => ConsultationDetailScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<ConsultationController>()) {
-              Get.lazyPut<ConsultationController>(
-                  () => ConsultationController());
-            }
-          }),
-        ),
-        GetPage(
-          name: '/video-consultation',
-          page: () =>
-              VideoConsultationScreen(), // uses video_consultation_screen_new.dart
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<ConsultationController>()) {
-              Get.lazyPut<ConsultationController>(
-                  () => ConsultationController());
-            }
-          }),
-        ),
-        // Reviews Routes
-        GetPage(
-          name: '/reviews',
-          page: () => ReviewsScreen(),
-          binding: BindingsBuilder(() {
-            Get.lazyPut<ReviewController>(() => ReviewController());
-          }),
-        ),
-        GetPage(
-          name: '/write-review',
-          page: () => WriteReviewScreen(),
-        ),
-        // Doctor Routes
-        GetPage(
-          name: '/pending-approval',
-          page: () => PendingApprovalScreen(),
-        ),
-        GetPage(
-          name: '/doctor-home',
-          page: () => DoctorDashboardScreen(),
-        ),
-        GetPage(
-          name: '/doctor-schedule',
-          page: () => DoctorScheduleScreen(),
-        ),
-        GetPage(
-          name: '/doctor-appointments',
-          page: () => DoctorAppointmentsScreen(),
-        ),
-        GetPage(
-          name: '/doctor-earnings',
-          page: () => DoctorEarningsScreen(),
-        ),
-        GetPage(
-          name: '/doctor-profile-edit',
-          page: () => DoctorProfileEditScreen(),
-        ),
-        // Aliases used by doctor dashboard quick actions
-        GetPage(
-          name: '/doctor-chat',
-          page: () => ChatScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<ChatController>()) {
-              Get.lazyPut<ChatController>(() => ChatController());
-            }
-          }),
-        ),
-        GetPage(
-          name: '/doctor-prescriptions',
-          page: () => PrescriptionsScreen(),
-          binding: BindingsBuilder(() {
-            if (!Get.isRegistered<PrescriptionController>()) {
+            }),
+          ),
+          GetPage(
+            name: '/chat-detail',
+            page: () => ChatDetailScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<ChatController>()) {
+                Get.lazyPut<ChatController>(() => ChatController());
+              }
+            }),
+          ),
+          // Health Records Route
+          GetPage(
+            name: '/health-records',
+            page: () => HealthRecordsScreen(),
+            binding: BindingsBuilder(() {
+              Get.lazyPut<HealthRecordController>(
+                  () => HealthRecordController());
+            }),
+          ),
+          // Prescriptions Routes
+          GetPage(
+            name: '/prescriptions',
+            page: () => PrescriptionsScreen(),
+            binding: BindingsBuilder(() {
               Get.lazyPut<PrescriptionController>(
                   () => PrescriptionController());
-            }
-          }),
-        ),
-        GetPage(
-          name: '/doctor-profile',
-          page: () => DoctorProfileEditScreen(),
-        ),
-      ],
+            }),
+          ),
+          GetPage(
+            name: '/prescription-detail',
+            page: () => PrescriptionDetailScreen(),
+          ),
+          // Consultations Routes
+          GetPage(
+            name: '/consultations',
+            page: () => ConsultationScreen(),
+            binding: BindingsBuilder(() {
+              Get.lazyPut<ConsultationController>(
+                  () => ConsultationController());
+            }),
+          ),
+          GetPage(
+            name: '/consultation-detail',
+            page: () => ConsultationDetailScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<ConsultationController>()) {
+                Get.lazyPut<ConsultationController>(
+                    () => ConsultationController());
+              }
+            }),
+          ),
+          GetPage(
+            name: '/video-consultation',
+            page: () =>
+                VideoConsultationScreen(), // uses video_consultation_screen_new.dart
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<ConsultationController>()) {
+                Get.lazyPut<ConsultationController>(
+                    () => ConsultationController());
+              }
+            }),
+          ),
+          // Reviews Routes
+          GetPage(
+            name: '/reviews',
+            page: () => ReviewsScreen(),
+            binding: BindingsBuilder(() {
+              Get.lazyPut<ReviewController>(() => ReviewController());
+            }),
+          ),
+          GetPage(
+            name: '/write-review',
+            page: () => WriteReviewScreen(),
+          ),
+          // Doctor Routes
+          GetPage(
+            name: '/pending-approval',
+            page: () => PendingApprovalScreen(),
+          ),
+          GetPage(
+            name: '/doctor-home',
+            page: () => DoctorDashboardScreen(),
+          ),
+          GetPage(
+            name: '/doctor-schedule',
+            page: () => DoctorScheduleScreen(),
+          ),
+          GetPage(
+            name: '/doctor-appointments',
+            page: () => DoctorAppointmentsScreen(),
+          ),
+          GetPage(
+            name: '/doctor-earnings',
+            page: () => DoctorEarningsScreen(),
+          ),
+          GetPage(
+            name: '/doctor-profile-edit',
+            page: () => DoctorProfileEditScreen(),
+          ),
+          // Aliases used by doctor dashboard quick actions
+          GetPage(
+            name: '/doctor-chat',
+            page: () => ChatScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<ChatController>()) {
+                Get.lazyPut<ChatController>(() => ChatController());
+              }
+            }),
+          ),
+          GetPage(
+            name: '/doctor-prescriptions',
+            page: () => PrescriptionsScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<PrescriptionController>()) {
+                Get.lazyPut<PrescriptionController>(
+                    () => PrescriptionController());
+              }
+            }),
+          ),
+          GetPage(
+            name: '/doctor-profile',
+            page: () => DoctorProfileEditScreen(),
+          ),
+        ],
+      ),
     );
   }
 }

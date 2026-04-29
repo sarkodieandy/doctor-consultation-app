@@ -2,6 +2,7 @@ import 'package:doctor_consultation_app/models/user_model.dart';
 import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -15,6 +16,13 @@ class AuthService {
   final _store = UiMockStore.instance;
 
   UserModel? _currentUser;
+  supabase.SupabaseClient? get _client {
+    try {
+      return supabase.Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   UserModel? get currentUser => _currentUser ?? _store.currentUser;
 
@@ -60,6 +68,13 @@ class AuthService {
   }
 
   Future<void> initSession() async {
+    final remoteUser = _client?.auth.currentUser;
+    if (remoteUser != null) {
+      _currentUser = await _loadRemoteUser(remoteUser);
+      _store.currentUserId = _currentUser?.id;
+      return;
+    }
+
     final userId = _store.currentUserId;
     if (userId == null) {
       _currentUser = null;
@@ -76,6 +91,27 @@ class AuthService {
       throw 'Please enter your email or username.';
     }
     if (trimmedPassword.isEmpty) throw 'Please enter your password.';
+
+    if (_client != null && normalizedLogin.contains('@')) {
+      try {
+        final response = await _client!.auth.signInWithPassword(
+          email: normalizedLogin,
+          password: trimmedPassword,
+        );
+        final remoteUser = response.user ?? _client!.auth.currentUser;
+        if (remoteUser == null) {
+          throw 'Unable to start Supabase session.';
+        }
+        _currentUser = await _loadRemoteUser(remoteUser);
+        _store.currentUserId = _currentUser?.id;
+        if (_currentUser != null) {
+          _store.saveUser(_currentUser!);
+        }
+        return true;
+      } catch (_) {
+        // Keep seeded local preview users usable while Supabase is being set up.
+      }
+    }
 
     final resolvedEmail = _store.resolveEmailFromLogin(normalizedLogin);
     if (resolvedEmail == null) {
@@ -125,7 +161,7 @@ class AuthService {
     }
 
     final user = UserModel(
-      id: _store.nextId('user'),
+      id: _client?.auth.currentUser?.id ?? _store.nextId('user'),
       email: normalizedEmail,
       firstName: firstName,
       lastName: lastName,
@@ -135,10 +171,18 @@ class AuthService {
       role: UserRole.patient,
     );
 
+    final remoteUser = await _createRemoteUser(
+      user: user,
+      password: password,
+      role: UserRole.patient,
+      profilePictureFile: profilePictureFile,
+    );
+    final savedUser = remoteUser ?? user;
+
     _store.passwordsByEmail[normalizedEmail] = password;
-    _store.saveUser(user);
-    _store.currentUserId = user.id;
-    _currentUser = user;
+    _store.saveUser(savedUser);
+    _store.currentUserId = savedUser.id;
+    _currentUser = savedUser;
     return true;
   }
 
@@ -181,7 +225,7 @@ class AuthService {
     }
 
     final user = UserModel(
-      id: _store.nextId('user'),
+      id: _client?.auth.currentUser?.id ?? _store.nextId('user'),
       email: normalizedEmail,
       firstName: firstName,
       lastName: lastName,
@@ -198,10 +242,18 @@ class AuthService {
       isOnline: false,
     );
 
+    final remoteUser = await _createRemoteUser(
+      user: user,
+      password: password,
+      role: UserRole.doctor,
+      profilePictureFile: profilePictureFile,
+    );
+    final savedUser = remoteUser ?? user;
+
     _store.passwordsByEmail[normalizedEmail] = password;
-    _store.saveUser(user);
-    _store.currentUserId = user.id;
-    _currentUser = user;
+    _store.saveUser(savedUser);
+    _store.currentUserId = savedUser.id;
+    _currentUser = savedUser;
     return true;
   }
 
@@ -210,8 +262,9 @@ class AuthService {
     if (doctor == null) return;
     final updated = doctor.copyWith(
       approvalStatus: DoctorApprovalStatus.approved,
-      approvalNote: 'Approved in local UI-only mode.',
+      approvalNote: 'Approved.',
     );
+    await _upsertProfile(updated);
     _store.saveUser(updated);
     if (_currentUser?.id == doctorId) {
       _currentUser = updated;
@@ -225,6 +278,7 @@ class AuthService {
       approvalStatus: DoctorApprovalStatus.rejected,
       approvalNote: reason,
     );
+    await _upsertProfile(updated);
     _store.saveUser(updated);
     if (_currentUser?.id == doctorId) {
       _currentUser = updated;
@@ -235,11 +289,13 @@ class AuthService {
     final user = currentUser;
     if (user == null || !user.isDoctor) return;
     final updated = user.copyWith(isOnline: isOnline);
+    await _upsertProfile(updated);
     _store.saveUser(updated);
     _currentUser = updated;
   }
 
   Future<void> logout() async {
+    await _client?.auth.signOut();
     _store.currentUserId = null;
     _currentUser = null;
   }
@@ -252,16 +308,136 @@ class AuthService {
   }
 
   Future<String> uploadProfilePicture(String userId, XFile imageFile) async {
-    return imageFile.path;
+    return await _uploadRemoteProfilePicture(userId, imageFile) ??
+        imageFile.path;
   }
 
   Future<void> updateCurrentUser(
     UserModel user, {
     XFile? profilePictureFile,
   }) async {
-    _store.saveUser(user);
-    _currentUser = user;
+    final profileImageUrl = profilePictureFile == null
+        ? user.profileImage
+        : await _uploadRemoteProfilePicture(user.id, profilePictureFile);
+    final updatedUser = user.copyWith(
+      profileImage: profileImageUrl ?? user.profileImage,
+    );
+    await _upsertProfile(updatedUser);
+    _store.saveUser(updatedUser);
+    _currentUser = updatedUser;
     _store.currentUserId = user.id;
+  }
+
+  Future<UserModel?> _createRemoteUser({
+    required UserModel user,
+    required String password,
+    required UserRole role,
+    XFile? profilePictureFile,
+  }) async {
+    final client = _client;
+    if (client == null) return null;
+
+    try {
+      final response = await client.auth.signUp(
+        email: user.email,
+        password: password,
+        data: {
+          'first_name': user.firstName,
+          'last_name': user.lastName,
+          'phone': user.phone,
+          'role': role.name,
+        },
+      );
+      final remoteUser = response.user;
+      if (remoteUser == null) return null;
+
+      final profileImageUrl = profilePictureFile == null
+          ? user.profileImage
+          : await _uploadRemoteProfilePicture(
+              remoteUser.id, profilePictureFile);
+      final remoteProfile = user.copyWith(
+        id: remoteUser.id,
+        profileImage: profileImageUrl ?? user.profileImage,
+      );
+      await _upsertProfile(remoteProfile);
+      return remoteProfile;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<UserModel?> _loadRemoteUser(supabase.User remoteUser) async {
+    try {
+      final data = await _client!
+          .from('profiles')
+          .select()
+          .eq('id', remoteUser.id)
+          .maybeSingle();
+      if (data != null) {
+        return UserModel.fromJson({
+          ...Map<String, dynamic>.from(data),
+          'id': remoteUser.id,
+          'email': remoteUser.email ?? data['email'] ?? '',
+        });
+      }
+    } catch (_) {
+      // Use auth metadata when the profiles table is not ready.
+    }
+
+    final metadata = remoteUser.userMetadata ?? const <String, dynamic>{};
+    return UserModel(
+      id: remoteUser.id,
+      email: remoteUser.email ?? '',
+      firstName: (metadata['first_name'] ?? '').toString(),
+      lastName: (metadata['last_name'] ?? '').toString(),
+      phone: (metadata['phone'] ?? '').toString(),
+      createdAt: DateTime.tryParse(remoteUser.createdAt) ?? DateTime.now(),
+      role: UserRole.values.firstWhere(
+        (role) => role.name == metadata['role']?.toString(),
+        orElse: () => UserRole.patient,
+      ),
+    );
+  }
+
+  Future<void> _upsertProfile(UserModel user) async {
+    final client = _client;
+    if (client == null) return;
+
+    try {
+      await client.from('profiles').upsert(user.toJson());
+    } catch (_) {
+      // Profile persistence is optional until the Supabase schema exists.
+    }
+  }
+
+  Future<String?> _uploadRemoteProfilePicture(
+    String userId,
+    XFile imageFile,
+  ) async {
+    final client = _client;
+    if (client == null || userId.trim().isEmpty) return null;
+
+    try {
+      final rawExtension = imageFile.name.split('.').last.toLowerCase();
+      final safeExtension = rawExtension.isEmpty || rawExtension.length > 5
+          ? 'jpg'
+          : rawExtension.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final path =
+          'profile-pictures/$userId/${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
+
+      await client.storage.from('profile-images').uploadBinary(
+            path,
+            await imageFile.readAsBytes(),
+            fileOptions: supabase.FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+            ),
+          );
+
+      return client.storage.from('profile-images').getPublicUrl(path);
+    } catch (_) {
+      return null;
+    }
   }
 
   bool _isValidEmail(String email) {
