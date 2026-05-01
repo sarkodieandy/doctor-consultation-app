@@ -247,6 +247,7 @@ class AuthService {
       password: password,
       role: UserRole.doctor,
       profilePictureFile: profilePictureFile,
+      licenseDocumentFile: licenseDocumentFile,
     );
     final savedUser = remoteUser ?? user;
 
@@ -333,6 +334,7 @@ class AuthService {
     required String password,
     required UserRole role,
     XFile? profilePictureFile,
+    PlatformFile? licenseDocumentFile,
   }) async {
     final client = _client;
     if (client == null) return null;
@@ -355,9 +357,16 @@ class AuthService {
           ? user.profileImage
           : await _uploadRemoteProfilePicture(
               remoteUser.id, profilePictureFile);
+      final licenseDocumentUrl = licenseDocumentFile == null
+          ? user.licenseDocumentPath
+          : await _uploadRemoteDoctorDocument(
+              remoteUser.id,
+              licenseDocumentFile,
+            );
       final remoteProfile = user.copyWith(
         id: remoteUser.id,
         profileImage: profileImageUrl ?? user.profileImage,
+        licenseDocumentPath: licenseDocumentUrl ?? user.licenseDocumentPath,
       );
       await _upsertProfile(remoteProfile);
       return remoteProfile;
@@ -435,6 +444,37 @@ class AuthService {
           );
 
       return client.storage.from('profile-images').getPublicUrl(path);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _uploadRemoteDoctorDocument(
+    String userId,
+    PlatformFile documentFile,
+  ) async {
+    final client = _client;
+    final bytes = documentFile.bytes;
+    if (client == null || userId.trim().isEmpty || bytes == null) return null;
+
+    try {
+      final rawExtension = documentFile.name.split('.').last.toLowerCase();
+      final safeExtension = rawExtension.isEmpty || rawExtension.length > 5
+          ? 'pdf'
+          : rawExtension.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final path =
+          'doctor-verification/$userId/${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
+
+      await client.storage.from('doctor-documents').uploadBinary(
+            path,
+            bytes,
+            fileOptions: supabase.FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+            ),
+          );
+
+      return client.storage.from('doctor-documents').getPublicUrl(path);
     } catch (_) {
       return null;
     }

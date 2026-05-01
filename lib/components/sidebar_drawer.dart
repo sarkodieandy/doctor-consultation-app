@@ -1,5 +1,7 @@
+
 import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -29,9 +31,10 @@ class _SidebarDrawerState extends State<SidebarDrawer>
     _slideAnimation = Tween<double>(begin: -1.0, end: 0.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -85,14 +88,9 @@ class _SidebarDrawerState extends State<SidebarDrawer>
                       // Header
                       _buildHeader(user),
                       // Menu Items
-                      Expanded(
-                        child: _buildMenuList(),
-                      ),
+                      Expanded(child: _buildMenuList()),
                       // Footer
-                      Container(
-                        height: 1,
-                        color: kBlueColor.withOpacity(0.1),
-                      ),
+                      Container(height: 1, color: kBlueColor.withOpacity(0.1)),
                       _buildFooter(),
                     ],
                   ),
@@ -107,8 +105,10 @@ class _SidebarDrawerState extends State<SidebarDrawer>
 
   Widget _buildHeader(dynamic user) {
     final isDoctor = user?.role.toString() == 'UserRole.doctor';
-    final initials =
-        user != null ? '${user.firstName[0]}${user.lastName[0]}' : 'U';
+    final initials = user != null
+        ? '${user.firstName[0]}${user.lastName[0]}'
+        : 'U';
+    final avatarImage = profileImageProvider(user?.profileImage as String?);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 400),
@@ -139,15 +139,34 @@ class _SidebarDrawerState extends State<SidebarDrawer>
                       width: 2,
                     ),
                   ),
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
+                  child: ClipOval(
+                    child: avatarImage != null
+                        ? Image(
+                            image: avatarImage,
+                            fit: BoxFit.cover,
+                            width: 56,
+                            height: 56,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -235,7 +254,10 @@ class _SidebarDrawerState extends State<SidebarDrawer>
       _MenuItem(Icons.person_rounded, 'Profile', '/doctor-profile-edit'),
       _MenuItem(Icons.calendar_today_rounded, 'Schedule', '/doctor-schedule'),
       _MenuItem(
-          Icons.event_note_rounded, 'Appointments', '/doctor-appointments'),
+        Icons.event_note_rounded,
+        'Appointments',
+        '/doctor-appointments',
+      ),
       _MenuItem(Icons.chat_bubble_rounded, 'Messages', '/chat'),
       _MenuItem(Icons.attach_money_rounded, 'Earnings', '/doctor-earnings'),
     ];
@@ -277,8 +299,10 @@ class _SidebarDrawerState extends State<SidebarDrawer>
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
                 decoration: BoxDecoration(
                   color: isCurrentRoute ? kBlueColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
@@ -305,8 +329,9 @@ class _SidebarDrawerState extends State<SidebarDrawer>
                     Text(
                       item.label,
                       style: TextStyle(
-                        fontWeight:
-                            isCurrentRoute ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isCurrentRoute
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                         color: isCurrentRoute ? Colors.white : kTitleTextColor,
                         fontSize: 15,
                       ),

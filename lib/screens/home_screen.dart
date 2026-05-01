@@ -9,6 +9,8 @@ import 'package:doctor_consultation_app/controllers/notification_controller.dart
 import 'package:doctor_consultation_app/data/patient_ui_content.dart';
 import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/screens/detail_screen.dart';
+import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
@@ -19,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _authService = AuthService();
   late AppointmentController _controller;
   late CareTimelineController _careTimelineController;
   late NotificationController _notificationController;
@@ -318,28 +321,59 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                InkWell(
-                  onTap: () => Get.toNamed('/profile'),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: kWhiteColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border:
-                          Border.all(color: kTitleTextColor.withOpacity(0.08)),
-                    ),
-                    child: Icon(
-                      Icons.person_outline_rounded,
-                      color: kBlueColor,
-                    ),
-                  ),
-                ),
+                _buildPatientAvatarButton(),
               ],
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPatientAvatarButton() {
+    final user = _authService.currentUser;
+    final avatarImage = profileImageProvider(user?.profileImage);
+
+    return InkWell(
+      onTap: () => Get.toNamed('/profile')?.then((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      }),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 48,
+        height: 48,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: kWhiteColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kTitleTextColor.withValues(alpha: 0.08)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: avatarImage == null
+              ? ColoredBox(
+                  color: kBlueColor.withValues(alpha: 0.10),
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    color: kBlueColor,
+                  ),
+                )
+              : Image(
+                  image: avatarImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) {
+                    return ColoredBox(
+                      color: kBlueColor.withValues(alpha: 0.10),
+                      child: Icon(
+                        Icons.person_outline_rounded,
+                        color: kBlueColor,
+                      ),
+                    );
+                  },
+                ),
+        ),
       ),
     );
   }
@@ -979,32 +1013,60 @@ class _HomeScreenState extends State<HomeScreen> {
             childAspectRatio: 1.75,
             children: [
               _buildFeatureCard(
+                'Symptom Checker',
+                Icons.health_and_safety,
+                'AI triage and next step',
+                () => Get.toNamed('/symptom-checker'),
+                0,
+              ),
+              _buildFeatureCard(
+                'Services',
+                Icons.local_hospital,
+                'Doctor, pharmacy and care',
+                () => Get.toNamed('/service-selection'),
+                1,
+              ),
+              _buildFeatureCard(
+                'Find Doctor',
+                Icons.manage_search,
+                'Browse and filter doctors',
+                () => Get.toNamed('/doctor-selection'),
+                2,
+              ),
+              _buildFeatureCard(
+                'Track Doctor',
+                Icons.route,
+                'Live visit tracking',
+                () => Get.toNamed('/track-doctor'),
+                3,
+              ),
+              _buildFeatureCard(
                 'Appointments',
                 Icons.calendar_today,
                 'Bookings and schedules',
                 () => Get.toNamed('/appointments'),
-                0,
+                4,
               ),
               _buildFeatureCard(
                 'Prescriptions',
                 Icons.description,
                 'Medication and reminders',
                 () => Get.toNamed('/prescriptions'),
-                1,
+                5,
               ),
               _buildFeatureCard(
-                'Health Records',
-                Icons.favorite,
-                'Vitals and reports',
-                () => Get.toNamed('/health-records'),
-                2,
+                'Visit Summary',
+                Icons.summarize,
+                'Post-consultation notes',
+                () => Get.toNamed('/consultation-summary'),
+                6,
               ),
               _buildFeatureCard(
-                'Messages',
-                Icons.chat_bubble,
-                'Chat with your doctor',
-                () => Get.toNamed('/chat'),
-                3,
+                'Settings',
+                Icons.settings,
+                'App preferences',
+                () => Get.toNamed('/settings'),
+                7,
               ),
             ],
           ),

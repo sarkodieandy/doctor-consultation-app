@@ -1,5 +1,7 @@
 import 'package:flutter/painting.dart';
 
+import 'package:doctor_consultation_app/utils/profile_image_provider.dart';
+
 class DoctorModel {
   static const String fallbackImagePath = 'assets/images/doctor1.png';
 
@@ -32,26 +34,8 @@ class DoctorModel {
   });
 
   ImageProvider<Object> get imageProvider {
-    final resolvedImageUrl = imageUrl.trim();
-
-    if (resolvedImageUrl.isEmpty) {
-      return const AssetImage(fallbackImagePath);
-    }
-
-    if (resolvedImageUrl.startsWith('assets/')) {
-      return AssetImage(resolvedImageUrl);
-    }
-
-    if (_looksLikeSvg(resolvedImageUrl)) {
-      return const AssetImage(fallbackImagePath);
-    }
-
-    return const AssetImage(fallbackImagePath);
-  }
-
-  bool _looksLikeSvg(String value) {
-    final lower = value.toLowerCase();
-    return lower.contains('.svg');
+    return profileImageProvider(imageUrl) ??
+        const AssetImage(fallbackImagePath);
   }
 
   Map<String, dynamic> toJson() {

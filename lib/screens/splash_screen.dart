@@ -122,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen>
         } else if (user != null) {
           Get.offAllNamed('/home');
         } else {
-          Get.offAllNamed('/login');
+          Get.offAllNamed('/onboarding');
         }
       }
     });

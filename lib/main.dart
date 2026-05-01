@@ -16,6 +16,7 @@ import 'package:doctor_consultation_app/screens/doctor/doctor_appointments_scree
 import 'package:doctor_consultation_app/screens/doctor/doctor_dashboard_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_earnings_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_profile_edit_screen.dart';
+import 'package:doctor_consultation_app/screens/doctor/doctor_prescription_writer_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/doctor_schedule_screen.dart';
 import 'package:doctor_consultation_app/screens/doctor/pending_approval_screen.dart';
 import 'package:doctor_consultation_app/screens/health_records_screen.dart';
@@ -24,11 +25,13 @@ import 'package:doctor_consultation_app/screens/login_screen.dart';
 import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/notifications_screen.dart';
+import 'package:doctor_consultation_app/screens/onboarding_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_method_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
 import 'package:doctor_consultation_app/screens/profile_screen.dart';
 import 'package:doctor_consultation_app/screens/reviews_screen.dart';
+import 'package:doctor_consultation_app/screens/requested_flow_screens.dart';
 import 'package:doctor_consultation_app/screens/splash_screen.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/services/notification_service.dart';
@@ -93,6 +96,10 @@ class MyApp extends StatelessWidget {
             page: () => SignupScreen(),
           ),
           GetPage(
+            name: '/onboarding',
+            page: () => OnboardingScreen(),
+          ),
+          GetPage(
             name: '/home',
             page: () => HomeScreen(),
             binding: BindingsBuilder(ensureAppointmentController),
@@ -122,6 +129,34 @@ class MyApp extends StatelessWidget {
           GetPage(
             name: '/profile',
             page: () => ProfileScreen(),
+          ),
+          GetPage(
+            name: '/symptom-checker',
+            page: () => const SymptomCheckerScreen(),
+          ),
+          GetPage(
+            name: '/service-selection',
+            page: () => const ServiceSelectionScreen(),
+          ),
+          GetPage(
+            name: '/doctor-selection',
+            page: () => const DoctorSelectionScreen(),
+          ),
+          GetPage(
+            name: '/booking-confirmation',
+            page: () => const BookingConfirmationScreen(),
+          ),
+          GetPage(
+            name: '/track-doctor',
+            page: () => const TrackDoctorScreen(),
+          ),
+          GetPage(
+            name: '/consultation-summary',
+            page: () => const ConsultationSummaryScreen(),
+          ),
+          GetPage(
+            name: '/settings',
+            page: () => const AppSettingsScreen(),
           ),
           GetPage(
             name: '/notifications',
@@ -272,6 +307,20 @@ class MyApp extends StatelessWidget {
           GetPage(
             name: '/doctor-profile',
             page: () => DoctorProfileEditScreen(),
+          ),
+          GetPage(
+            name: '/doctor-write-prescription',
+            page: () => const DoctorPrescriptionWriterScreen(),
+            binding: BindingsBuilder(() {
+              if (!Get.isRegistered<PrescriptionController>()) {
+                Get.lazyPut<PrescriptionController>(
+                    () => PrescriptionController());
+              }
+            }),
+          ),
+          GetPage(
+            name: '/doctor-verification-status',
+            page: () => const DoctorVerificationStatusScreen(),
           ),
         ],
       ),

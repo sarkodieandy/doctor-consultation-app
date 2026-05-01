@@ -3,8 +3,8 @@ import 'package:doctor_consultation_app/constant.dart';
 import 'package:doctor_consultation_app/controllers/appointment_controller.dart';
 import 'package:doctor_consultation_app/controllers/notification_controller.dart';
 import 'package:doctor_consultation_app/models/appointment_model.dart';
-import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
@@ -426,11 +426,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen>
                                 ),
                               ],
                             ),
-                            child: CircleAvatar(
+                            child: _buildProfileAvatar(
+                              imagePath: user?.profileImage,
                               radius: 22,
-                              backgroundColor: const Color(0xffE8F1FF),
-                              backgroundImage: _doctorProfileImageProvider(
-                                  user?.profileImage),
                             ),
                           ),
                         ),
@@ -465,18 +463,19 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen>
     );
   }
 
-  ImageProvider<Object> _doctorProfileImageProvider(String? imagePath) {
-    final trimmedPath = imagePath?.trim() ?? '';
-    if (trimmedPath.isEmpty) {
-      return const AssetImage(DoctorModel.fallbackImagePath);
-    }
-    if (trimmedPath.startsWith('assets/')) {
-      return AssetImage(trimmedPath);
-    }
-    if (trimmedPath.toLowerCase().contains('.svg')) {
-      return const AssetImage(DoctorModel.fallbackImagePath);
-    }
-    return const AssetImage(DoctorModel.fallbackImagePath);
+  Widget _buildProfileAvatar({
+    required String? imagePath,
+    required double radius,
+  }) {
+    final avatarImage = profileImageProvider(imagePath);
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xffE8F1FF),
+      backgroundImage: avatarImage,
+      child: avatarImage == null
+          ? const Icon(Icons.person, color: Color(0xff3B6FEC))
+          : null,
+    );
   }
 
   Widget _buildAnimatedStatCard(
@@ -656,6 +655,20 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen>
           icon: Icons.medication_outlined,
           color: const Color(0xff81C784),
           onTap: () => Get.toNamed('/doctor-prescriptions'),
+        ),
+        _buildQuickActionCard(
+          label: 'Verification',
+          subtitle: 'License and approval status',
+          icon: Icons.verified_user_outlined,
+          color: kBlueColor,
+          onTap: () => Get.toNamed('/doctor-verification-status'),
+        ),
+        _buildQuickActionCard(
+          label: 'Settings',
+          subtitle: 'Notifications and app preferences',
+          icon: Icons.settings_outlined,
+          color: const Color(0xff4FC3F7),
+          onTap: () => Get.toNamed('/settings'),
         ),
         _buildQuickActionCard(
           label: 'Profile',
@@ -890,14 +903,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen>
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          _buildProfileAvatar(
+            imagePath: appointment.patientAvatar,
             radius: 24,
-            backgroundColor: const Color(0xffE8F1FF),
-            backgroundImage:
-                _doctorProfileImageProvider(appointment.patientAvatar),
-            child: appointment.patientAvatar.isEmpty
-                ? const Icon(Icons.person, color: Color(0xff3B6FEC))
-                : null,
           ),
           const SizedBox(width: 12),
           Expanded(

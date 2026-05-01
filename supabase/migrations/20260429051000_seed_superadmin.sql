@@ -142,6 +142,31 @@ drop policy if exists profile_images_authenticated_update on storage.objects;
 create policy profile_images_authenticated_update on storage.objects
   for update to authenticated using (bucket_id = 'profile-images') with check (bucket_id = 'profile-images');
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'doctor-documents',
+  'doctor-documents',
+  true,
+  10485760,
+  array['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists doctor_documents_public_read on storage.objects;
+create policy doctor_documents_public_read on storage.objects
+  for select using (bucket_id = 'doctor-documents');
+
+drop policy if exists doctor_documents_authenticated_upload on storage.objects;
+create policy doctor_documents_authenticated_upload on storage.objects
+  for insert to authenticated with check (bucket_id = 'doctor-documents');
+
+drop policy if exists doctor_documents_authenticated_update on storage.objects;
+create policy doctor_documents_authenticated_update on storage.objects
+  for update to authenticated using (bucket_id = 'doctor-documents') with check (bucket_id = 'doctor-documents');
+
 alter table public.appointments add column if not exists patient_name text;
 alter table public.appointments add column if not exists patient_avatar text;
 alter table public.appointments add column if not exists doctor_name text;

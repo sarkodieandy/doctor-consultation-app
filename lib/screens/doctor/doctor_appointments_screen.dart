@@ -438,6 +438,65 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
               ],
             ),
           ],
+          if (status == 'confirmed' || status == 'completed') ...[
+            SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Get.toNamed(
+                      '/video-consultation',
+                      arguments: {
+                        'appointmentId': appointment.id,
+                        'userId': appointment.doctorId,
+                        'patientId': appointment.userId,
+                        'doctorId': appointment.doctorId,
+                        'doctorName': appointment.patientName.isNotEmpty
+                            ? appointment.patientName
+                            : 'Patient #${appointment.userId}',
+                        'patientFullName': appointment.patientName,
+                        'doctorFullName': appointment.doctorName,
+                        'patientAvatar': appointment.patientAvatar,
+                        'doctorAvatar': appointment.doctorImage,
+                        'patientName': 'Dr. ${appointment.doctorName}',
+                        'isVideoCall': true,
+                      },
+                    ),
+                    icon: Icon(Icons.videocam_outlined, color: kBlueColor),
+                    label:
+                        Text('Start call', style: TextStyle(color: kBlueColor)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: kBlueColor.withOpacity(0.35)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Get.toNamed(
+                      '/doctor-write-prescription',
+                      arguments: appointment,
+                    ),
+                    icon: Icon(Icons.medication_outlined, color: kWhiteColor),
+                    label: Text('Prescription',
+                        style: TextStyle(
+                            color: kWhiteColor, fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBlueColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

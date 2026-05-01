@@ -583,7 +583,12 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
 
-      Get.offNamed('/appointments');
+      Get.offNamed('/booking-confirmation', arguments: {
+        'doctor_name': widget.doctor.name,
+        'time':
+            '$selectedTime on ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+        'appointment_id': appointmentId,
+      });
     }
   }
 }

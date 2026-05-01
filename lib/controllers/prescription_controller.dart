@@ -152,6 +152,23 @@ class PrescriptionController extends GetxController {
     }
   }
 
+  Future<bool> createPrescription(PrescriptionModel prescription) async {
+    try {
+      isLoading(true);
+      errorMessage(null);
+      final success = await _prescriptionRepo.createPrescription(prescription);
+      if (success) {
+        await fetchAllPrescriptions();
+      }
+      return success;
+    } catch (e) {
+      errorMessage(e.toString());
+      return false;
+    } finally {
+      isLoading(false);
+    }
+  }
+
   Future<bool> sendMedicineReminder(
     PrescriptionModel prescription,
     Medicine medicine,

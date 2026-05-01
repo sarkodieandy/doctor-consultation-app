@@ -560,6 +560,7 @@ function renderDoctors() {
         const status = normalizeStatus(doctor.approval_status || "pending");
         const fee = Number(doctor.consultation_fee || 0).toFixed(0);
         const payoutReady = doctor.mobile_money_number || doctor.payout_recipient_code;
+        const hasDocument = Boolean(doctor.license_document_path);
         const appointments = state.appointments.filter((appointment) => appointment.doctor_id === doctor.id).length;
         return `
           <article class="doctor-card modern-doctor-card">
@@ -572,7 +573,7 @@ function renderDoctors() {
                   <span class="status ${doctor.deactivated ? "cancelled" : status}">${doctor.deactivated ? "Suspended" : capitalize(status)}</span>
                 </div>
                 <p>${doctor.specialty || "General Practice"} · ${doctor.experience || "Experience not set"}</p>
-                <span>${doctor.email || "No email on profile"}</span>
+                <span class="doctor-email">${doctor.email || "No email on profile"}</span>
               </div>
             </div>
             <div class="doctor-meta modern-doctor-meta">
@@ -583,9 +584,16 @@ function renderDoctors() {
             </div>
             <div class="doctor-readiness">
               <span class="${doctor.profile_image ? "ready" : ""}">Photo</span>
-              <span class="${doctor.license_document_path ? "ready" : ""}">License</span>
+              <span class="${hasDocument ? "ready" : ""}">License</span>
               <span class="${doctor.phone ? "ready" : ""}">Phone</span>
               <span class="${payoutReady ? "ready" : ""}">Payout</span>
+            </div>
+            <div class="verification-strip ${hasDocument ? "ready" : "missing"}">
+              <div>
+                <strong>${hasDocument ? "Verification document uploaded" : "Verification document missing"}</strong>
+                <span>${doctor.approval_note || (hasDocument ? "Open the license before approving." : "Doctor must upload a license from the app.")}</span>
+              </div>
+              <button class="small-button neutral" onclick="viewDoctorDocument('${doctor.id}')">${hasDocument ? "View document" : "No document"}</button>
             </div>
             <div class="actions-row">
               <button class="small-button success" onclick="updateDoctorStatus('${doctor.id}', 'approved')">Approve</button>
@@ -688,7 +696,7 @@ function renderPatients() {
         return `
           <article class="patient-card">
             <div class="patient-top">
-              <div class="avatar">${initials(fullName(patient))}</div>
+              ${profileAvatar(patient, fullName(patient))}
               <div>
                 <h2>${fullName(patient)}</h2>
                 <p>${patient.email || "No email"} · ${patient.phone || "No phone"}</p>
@@ -762,19 +770,49 @@ function renderSettings() {
 async function updateDoctorStatus(id, status) {
   const doctor = state.doctors.find((item) => item.id === id);
   if (!doctor) return;
+  if (status === "approved" && !doctor.license_document_path) {
+    toast("Doctor has no verification document uploaded");
+    return;
+  }
+  const approvalNote =
+    status === "approved"
+      ? "Document reviewed and approved by KazHealth admin."
+      : prompt("Reason for rejecting this doctor?", doctor.approval_note || "Document could not be verified.") ||
+        "Document could not be verified.";
 
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
     const table = doctor.source === "profiles" ? "profiles" : "doctors";
-    const { error } = await db.from(table).update({ approval_status: status }).eq("id", id);
+    const { error } = await db
+      .from(table)
+      .update({ approval_status: status, approval_note: approvalNote })
+      .eq("id", id);
     if (error) return toast(error.message);
   }
 
   doctor.approval_status = status;
+  doctor.approval_note = approvalNote;
   const profile = state.profiles.find((item) => item.id === id);
-  if (profile) profile.approval_status = status;
+  if (profile) {
+    profile.approval_status = status;
+    profile.approval_note = approvalNote;
+  }
   render();
   toast(`Doctor ${status}`);
+}
+
+function viewDoctorDocument(id) {
+  const doctor = state.doctors.find((item) => item.id === id);
+  const documentUrl = String(doctor?.license_document_path || "").trim();
+  if (!documentUrl) {
+    toast("No verification document uploaded");
+    return;
+  }
+  if (!documentUrl.startsWith("http://") && !documentUrl.startsWith("https://")) {
+    toast("This document is local-only. Ask the doctor to re-upload after the Supabase migration is applied.");
+    return;
+  }
+  window.open(documentUrl, "_blank", "noopener,noreferrer");
 }
 
 async function updateAppointmentStatus(id, status) {

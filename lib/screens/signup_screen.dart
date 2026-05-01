@@ -56,6 +56,15 @@ class _SignupScreenState extends State<SignupScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    if (args is Map && args['role'] == 'doctor') {
+      _isDoctor = true;
+    }
+  }
+
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();

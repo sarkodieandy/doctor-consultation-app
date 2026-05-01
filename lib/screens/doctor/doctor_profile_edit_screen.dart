@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:doctor_consultation_app/constant.dart';
-import 'package:doctor_consultation_app/models/doctor_model.dart';
 import 'package:doctor_consultation_app/services/auth_service.dart';
+import 'package:doctor_consultation_app/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -166,19 +166,7 @@ class _DoctorProfileEditScreenState extends State<DoctorProfileEditScreen> {
     if (_selectedProfileImageBytes != null) {
       return MemoryImage(_selectedProfileImageBytes!);
     }
-    final trimmedPath = imagePath.trim();
-    if (trimmedPath.isEmpty) return null;
-    if (trimmedPath.startsWith('assets/')) {
-      return AssetImage(trimmedPath);
-    }
-    if (_looksLikeSvg(trimmedPath)) {
-      return const AssetImage(DoctorModel.fallbackImagePath);
-    }
-    return const AssetImage(DoctorModel.fallbackImagePath);
-  }
-
-  bool _looksLikeSvg(String value) {
-    return value.toLowerCase().contains('.svg');
+    return profileImageProvider(imagePath);
   }
 
   Future<void> _saveProfile() async {
