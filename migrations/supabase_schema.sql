@@ -190,6 +190,11 @@ create table if not exists notifications (
 alter table notifications add column if not exists title text;
 alter table notifications add column if not exists target_role text check (target_role in ('all', 'patient', 'doctor', 'admin')) default 'all';
 alter table notifications add column if not exists user_id uuid references profiles(id) on delete cascade on update cascade;
+alter table notifications add column if not exists type text default 'appointment';
+alter table notifications add column if not exists related_id text;
+alter table notifications add column if not exists is_read boolean default false;
+alter table notifications add column if not exists read_at timestamptz;
+alter table notifications add column if not exists metadata jsonb;
 
 -- Care conversations between patients and doctors
 create table if not exists care_chats (

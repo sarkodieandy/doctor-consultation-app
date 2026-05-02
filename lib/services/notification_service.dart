@@ -1,6 +1,7 @@
 import 'package:doctor_consultation_app/models/notification_model.dart';
 import 'package:doctor_consultation_app/services/ui_mock_store.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -14,6 +15,14 @@ class NotificationService {
     _notificationsPlugin = FlutterLocalNotificationsPlugin();
   }
   final _store = UiMockStore.instance;
+
+  SupabaseClient? get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Initialize notifications
   Future<void> initialize() async {
@@ -210,16 +219,38 @@ class NotificationService {
 
   /// Get all notifications
   Future<List<NotificationModel>> getNotifications(String userId) async {
+    final client = _client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('notifications')
+            .select()
+            .or('user_id.eq.$userId,target_role.eq.all')
+            .order('created_at', ascending: false);
+        return (data as List)
+            .map((item) =>
+                NotificationModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      } catch (_) {}
+    }
     final notifications = _store.notifications
         .where((notification) => notification.userId == userId)
         .toList();
-    notifications
-        .sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return notifications;
   }
 
   /// Mark notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
+    final client = _client;
+    if (client != null) {
+      try {
+        await client.from('notifications').update({
+          'is_read': true,
+          'read_at': DateTime.now().toIso8601String(),
+        }).eq('id', notificationId);
+      } catch (_) {}
+    }
     final index = _store.notifications.indexWhere(
       (notification) => notification.id == notificationId,
     );
@@ -233,6 +264,19 @@ class NotificationService {
 
   /// Mark all notifications as read
   Future<void> markAllAsRead(String userId) async {
+    final client = _client;
+    if (client != null) {
+      try {
+        await client
+            .from('notifications')
+            .update({
+              'is_read': true,
+              'read_at': DateTime.now().toIso8601String(),
+            })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+      } catch (_) {}
+    }
     for (var index = 0; index < _store.notifications.length; index += 1) {
       final notification = _store.notifications[index];
       if (notification.userId == userId && !notification.isRead) {

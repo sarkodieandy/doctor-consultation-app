@@ -3,10 +3,13 @@ import 'package:doctor_consultation_app/services/auth_service.dart';
 import 'package:doctor_consultation_app/data/repositories/notification_repository.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationController extends GetxController {
   final _authService = AuthService();
   final _notificationRepo = NotificationRepository();
+
+  RealtimeChannel? _notificationChannel;
 
   final notifications = <NotificationModel>[].obs;
   final isLoading = false.obs;
@@ -24,7 +27,41 @@ class NotificationController extends GetxController {
         return;
       }
       fetchNotifications();
+      _subscribeNotificationsRealtime();
     });
+  }
+
+  void _subscribeNotificationsRealtime() {
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) return;
+    try {
+      final client = Supabase.instance.client;
+      _notificationChannel = client
+          .channel('notifications-$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => fetchNotifications(),
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
+  @override
+  void onClose() {
+    final channel = _notificationChannel;
+    if (channel != null) {
+      try {
+        Supabase.instance.client.removeChannel(channel);
+      } catch (_) {}
+    }
+    super.onClose();
   }
 
   Future<void> refresh() async {

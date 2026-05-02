@@ -350,6 +350,7 @@ async function openDashboard({ previewMode = false } = {}) {
     await loadData();
   }
   render();
+  if (!previewMode && db) subscribeRealtime();
 }
 
 function showLogin() {
@@ -593,7 +594,7 @@ function renderDoctors() {
                 <strong>${hasDocument ? "Verification document uploaded" : "Verification document missing"}</strong>
                 <span>${doctor.approval_note || (hasDocument ? "Open the license before approving." : "Doctor must upload a license from the app.")}</span>
               </div>
-              <button class="small-button neutral" onclick="viewDoctorDocument('${doctor.id}')">${hasDocument ? "View document" : "No document"}</button>
+              <button class="small-button neutral" onclick="viewDoctorDocument('${doctor.id}')">${hasDocument ? "Review document" : "No document"}</button>
             </div>
             <div class="actions-row">
               <button class="small-button success" onclick="updateDoctorStatus('${doctor.id}', 'approved')">Approve</button>
@@ -801,18 +802,178 @@ async function updateDoctorStatus(id, status) {
   toast(`Doctor ${status}`);
 }
 
+// ── DOCTOR DOCUMENT REVIEW ────────────────────────────────────────────────
+let _reviewingDoctorId = null;
+
 function viewDoctorDocument(id) {
   const doctor = state.doctors.find((item) => item.id === id);
-  const documentUrl = String(doctor?.license_document_path || "").trim();
-  if (!documentUrl) {
+  if (!doctor) {
+    toast("Doctor not found");
+    return;
+  }
+
+  const documentPath = String(doctor.license_document_path || "").trim();
+  if (!documentPath) {
     toast("No verification document uploaded");
     return;
   }
-  if (!documentUrl.startsWith("http://") && !documentUrl.startsWith("https://")) {
-    toast("This document is local-only. Ask the doctor to re-upload after the Supabase migration is applied.");
-    return;
+
+  _reviewingDoctorId = id;
+  let documentUrl = documentPath;
+
+  // If it's a Supabase storage path (not a full URL), construct public URL
+  if (!documentPath.startsWith("http://") && !documentPath.startsWith("https://")) {
+    documentUrl = `${SUPABASE_URL}/storage/v1/object/public/doctor-documents/${documentPath}`;
   }
-  window.open(documentUrl, "_blank", "noopener,noreferrer");
+
+  // Populate modal
+  $("#docFrame").src = documentUrl;
+  $("#reviewDoctorName").textContent = fullDoctorName(doctor);
+  $("#reviewSpecialty").textContent = doctor.specialty || "General Practice";
+  $("#reviewExperience").textContent = doctor.experience || "Not specified";
+  $("#reviewNotes").value = doctor.approval_note || "";
+
+  // Show modal
+  $("#docReviewModal").classList.remove("hidden");
+}
+
+function closeDoctorReview() {
+  _reviewingDoctorId = null;
+  $("#docReviewModal").classList.add("hidden");
+  $("#docFrame").src = "";
+  $("#reviewNotes").value = "";
+}
+
+async function approveFromReview() {
+  if (!_reviewingDoctorId) return;
+  const notes = $("#reviewNotes").value || "Document reviewed and approved by KazHealth admin.";
+  const doctor = state.doctors.find((d) => d.id === _reviewingDoctorId);
+  
+  if (!state.usingPreview) {
+    if (!db) return toast("Supabase client unavailable");
+    const table = doctor.source === "profiles" ? "profiles" : "doctors";
+    
+    // 1. Update approval status
+    const { error: updateError } = await db
+      .from(table)
+      .update({ 
+        approval_status: "approved", 
+        is_doctor_approved: true,
+        approval_note: notes,
+        is_active: true
+      })
+      .eq("id", _reviewingDoctorId);
+    if (updateError) return toast(updateError.message);
+
+    // 2. Create notification for doctor
+    const { error: notifError } = await db
+      .from("notifications")
+      .insert({
+        user_id: _reviewingDoctorId,
+        title: "✓ Your profile is approved!",
+        message: "Your license has been verified. You're now visible to patients in the app and can accept consultation requests.",
+        target_role: "doctor"
+      });
+    if (notifError) console.warn("Notification insert failed:", notifError);
+
+    // 3. Create audit log entry
+    const adminEmail = state.session?.user?.email || "superadmin@docconsult.app";
+    const { error: auditError } = await db
+      .from("audit_log")
+      .insert({
+        admin_id: state.session?.user?.id,
+        action: "approved_doctor",
+        target_table: "profiles",
+        target_id: _reviewingDoctorId,
+        details: {
+          doctor_name: fullDoctorName(doctor),
+          doctor_email: doctor.email,
+          admin_email: adminEmail,
+          approval_note: notes,
+          timestamp: new Date().toISOString()
+        }
+      });
+    if (auditError) console.warn("Audit log insert failed:", auditError);
+  }
+
+  doctor.approval_status = "approved";
+  doctor.is_doctor_approved = true;
+  doctor.is_active = true;
+  doctor.approval_note = notes;
+  const profile = state.profiles.find((p) => p.id === _reviewingDoctorId);
+  if (profile) {
+    profile.approval_status = "approved";
+    profile.is_doctor_approved = true;
+    profile.is_active = true;
+    profile.approval_note = notes;
+  }
+
+  closeDoctorReview();
+  render();
+  toast("✓ Doctor approved! Notification sent. Now visible to patients.");
+}
+
+async function rejectFromReview() {
+  if (!_reviewingDoctorId) return;
+  const reason = $("#reviewNotes").value || "Document could not be verified. Please resubmit.";
+  const doctor = state.doctors.find((d) => d.id === _reviewingDoctorId);
+
+  if (!state.usingPreview) {
+    if (!db) return toast("Supabase client unavailable");
+    const table = doctor.source === "profiles" ? "profiles" : "doctors";
+    
+    // 1. Update rejection status
+    const { error: updateError } = await db
+      .from(table)
+      .update({ 
+        approval_status: "rejected", 
+        approval_note: reason
+      })
+      .eq("id", _reviewingDoctorId);
+    if (updateError) return toast(updateError.message);
+
+    // 2. Create notification for doctor
+    const { error: notifError } = await db
+      .from("notifications")
+      .insert({
+        user_id: _reviewingDoctorId,
+        title: "✗ Document needs revision",
+        message: "Your license document couldn't be verified. Please review the feedback and submit a new document.",
+        target_role: "doctor"
+      });
+    if (notifError) console.warn("Notification insert failed:", notifError);
+
+    // 3. Create audit log entry
+    const adminEmail = state.session?.user?.email || "superadmin@docconsult.app";
+    const { error: auditError } = await db
+      .from("audit_log")
+      .insert({
+        admin_id: state.session?.user?.id,
+        action: "rejected_doctor",
+        target_table: "profiles",
+        target_id: _reviewingDoctorId,
+        details: {
+          doctor_name: fullDoctorName(doctor),
+          doctor_email: doctor.email,
+          admin_email: adminEmail,
+          rejection_reason: reason,
+          timestamp: new Date().toISOString()
+        }
+      });
+    if (auditError) console.warn("Audit log insert failed:", auditError);
+  }
+
+  doctor.approval_status = "rejected";
+  doctor.approval_note = reason;
+  const profile = state.profiles.find((p) => p.id === _reviewingDoctorId);
+  if (profile) {
+    profile.approval_status = "rejected";
+    profile.approval_note = reason;
+  }
+
+  closeDoctorReview();
+  render();
+  toast("✗ Doctor rejected. They can resubmit a new document.");
 }
 
 async function updateAppointmentStatus(id, status) {
@@ -1066,6 +1227,8 @@ function updateConnection(mode, label, detail) {
   $("#connectionDot").className = `status-dot ${mode}`;
   $("#connectionLabel").textContent = label;
   $("#connectionDetail").textContent = detail;
+  const badge = $("#realtimeBadge");
+  if (badge) badge.classList.toggle("hidden", mode !== "online");
 }
 
 function metricCard(label, value, detail) {
@@ -1197,6 +1360,49 @@ function stripTags(html) {
   const element = document.createElement("div");
   element.innerHTML = html;
   return element.textContent || "";
+}
+
+// ── REALTIME ─────────────────────────────────────────────────────────────
+let _realtimeChannel = null;
+
+function subscribeRealtime() {
+  if (!db || _realtimeChannel) return;
+  _realtimeChannel = db
+    .channel("admin-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, async () => {
+      state.appointments = await selectTable("appointments");
+      renderActiveView();
+      toast("Appointments updated in real time");
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, async () => {
+      const profiles = await selectTable("profiles");
+      const doctors = await selectTable("doctors");
+      state.profiles = profiles;
+      state.doctors = mergeDoctorRows(profiles, doctors);
+      renderActiveView();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "doctors" }, async () => {
+      const profiles = await selectTable("profiles");
+      const doctors = await selectTable("doctors");
+      state.profiles = profiles;
+      state.doctors = mergeDoctorRows(profiles, doctors);
+      renderActiveView();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, async () => {
+      state.payments = await selectTable("payments");
+      renderActiveView();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, async () => {
+      state.reviews = await selectTable("reviews");
+      renderActiveView();
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        updateConnection("online", "Supabase live", "Realtime sync active");
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        updateConnection("offline", "Sync paused", "Realtime channel error — refresh to retry");
+      }
+    });
 }
 
 function toast(message) {

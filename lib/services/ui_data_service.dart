@@ -285,19 +285,43 @@ class UiDataService {
   }
 
   Future<List<NotificationModel>> getNotifications(String userId) async {
+    final client = _client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('notifications')
+            .select()
+            .or('user_id.eq.$userId,target_role.eq.all')
+            .order('created_at', ascending: false);
+        return (data as List)
+            .map((item) =>
+                NotificationModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      } catch (_) {}
+    }
     return _store.notifications
         .where((notification) => notification.userId == userId)
         .toList();
   }
 
   Future<void> markAsRead(String notificationId) async {
+    final client = _client;
+    if (client != null) {
+      try {
+        await client.from('notifications').update({
+          'is_read': true,
+          'read_at': DateTime.now().toIso8601String(),
+        }).eq('id', notificationId);
+      } catch (_) {}
+    }
     final index = _store.notifications.indexWhere(
       (notification) => notification.id == notificationId,
     );
-    if (index == -1) return;
-    _store.notifications[index] = _store.notifications[index].copyWith(
-      isRead: true,
-    );
+    if (index != -1) {
+      _store.notifications[index] = _store.notifications[index].copyWith(
+        isRead: true,
+      );
+    }
   }
 
   Future<List<DoctorModel>> _getRemoteDoctors({
@@ -307,25 +331,26 @@ class UiDataService {
     if (client == null) return const [];
 
     try {
-      final data = await client.from('doctors').select();
-      final doctors = (data as List)
-          .map((item) => DoctorModel.fromJson(Map<String, dynamic>.from(item)))
-          .toList();
+      // Query approved, active doctors from profiles and join doctors for rating
+      final data = await client
+          .from('profiles')
+          .select('*, doctors(rating, review_count)')
+          .eq('role', 'doctor')
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      final doctors = (data as List).map((item) {
+        final map = Map<String, dynamic>.from(item);
+        // Flatten nested doctors sub-object (rating, review_count) into map
+        final doctorData = map['doctors'];
+        if (doctorData is Map) {
+          map['rating'] ??= doctorData['rating'];
+          map['review_count'] ??= doctorData['review_count'];
+        }
+        return _doctorFromProfile(map);
+      }).toList();
       return _filterDoctors(doctors, params);
     } catch (_) {
-      try {
-        final data = await client
-            .from('profiles')
-            .select()
-            .eq('role', 'doctor')
-            .eq('approval_status', 'approved');
-        final doctors = (data as List)
-            .map((item) => _doctorFromProfile(Map<String, dynamic>.from(item)))
-            .toList();
-        return _filterDoctors(doctors, params);
-      } catch (_) {
-        return const [];
-      }
+      return const [];
     }
   }
 

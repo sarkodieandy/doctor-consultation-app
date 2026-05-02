@@ -6,10 +6,13 @@ import 'package:doctor_consultation_app/data/repositories/appointment_repository
 import 'package:doctor_consultation_app/data/repositories/doctor_repository.dart';
 import 'package:doctor_consultation_app/data/repositories/chat_repository.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppointmentController extends GetxController {
   final _authService = AuthService();
   final _notificationService = NotificationService();
+
+  RealtimeChannel? _doctorChannel;
 
   final _doctorRepo = DoctorRepository();
   final _appointmentRepo = AppointmentRepository();
@@ -29,6 +32,33 @@ class AppointmentController extends GetxController {
   void onInit() {
     super.onInit();
     _userId = _authService.resolveUserId(fallback: Get.arguments);
+    _subscribeDoctorRealtime();
+  }
+
+  void _subscribeDoctorRealtime() {
+    try {
+      final client = Supabase.instance.client;
+      _doctorChannel = client
+          .channel('doctors-realtime')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'profiles',
+            callback: (_) => fetchDoctors(),
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
+  @override
+  void onClose() {
+    final channel = _doctorChannel;
+    if (channel != null) {
+      try {
+        Supabase.instance.client.removeChannel(channel);
+      } catch (_) {}
+    }
+    super.onClose();
   }
 
   /// Fetch all doctors

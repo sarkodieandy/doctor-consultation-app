@@ -139,6 +139,10 @@ class MyApp extends StatelessWidget {
             page: () => const ServiceSelectionScreen(),
           ),
           GetPage(
+            name: '/lab-selection',
+            page: () => const LabSelectionScreen(),
+          ),
+          GetPage(
             name: '/doctor-selection',
             page: () => const DoctorSelectionScreen(),
           ),

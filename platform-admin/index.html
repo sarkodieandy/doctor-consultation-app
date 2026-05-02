@@ -121,6 +121,7 @@
             <input id="searchInput" type="search" placeholder="Doctor, patient, appointment..." />
           </label>
           <button class="ghost-button" id="refreshButton">Refresh</button>
+          <span class="realtime-badge hidden" id="realtimeBadge"><span class="rt-dot"></span>Live</span>
           <button class="primary-button" id="loginButton">Admin sign in</button>
         </div>
       </header>
@@ -327,6 +328,52 @@
     </main>
 
     <div class="toast" id="toast"></div>
+
+    <!-- Document Review Modal -->
+    <div class="modal-overlay hidden" id="docReviewModal">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Doctor verification</p>
+            <h2 id="docReviewTitle">Review license document</h2>
+          </div>
+          <button class="modal-close" onclick="closeDoctorReview()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="doc-viewer" id="docViewer">
+            <iframe id="docFrame" class="doc-iframe" src="" title="Doctor license document"></iframe>
+          </div>
+          <div class="doc-review-panel">
+            <div class="review-info">
+              <div>
+                <span class="eyebrow">Doctor name</span>
+                <strong id="reviewDoctorName">—</strong>
+              </div>
+              <div>
+                <span class="eyebrow">Specialty</span>
+                <strong id="reviewSpecialty">—</strong>
+              </div>
+              <div>
+                <span class="eyebrow">Experience</span>
+                <strong id="reviewExperience">—</strong>
+              </div>
+            </div>
+            <div class="review-notes">
+              <label>
+                <span class="eyebrow">Admin notes</span>
+                <textarea id="reviewNotes" placeholder="Document quality, verification status, etc."></textarea>
+              </label>
+            </div>
+            <div class="review-actions">
+              <button class="small-button success" onclick="approveFromReview()">✓ Approve doctor</button>
+              <button class="small-button danger" onclick="rejectFromReview()">✗ Reject doctor</button>
+              <button class="ghost-button" onclick="closeDoctorReview()">Close review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="js/app.js"></script>
   </body>
 </html>

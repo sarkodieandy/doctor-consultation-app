@@ -311,12 +311,12 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                       _buildActionButton(
                         Icons.download,
                         'Download',
-                        () => controller.downloadPrescription(prescription.id),
+                        () => _showDownloadModal(prescription),
                       ),
                       _buildActionButton(
                         Icons.share,
                         'Share',
-                        () => controller.sharePrescription(prescription.id, []),
+                        () => _showShareModal(prescription),
                       ),
                     ],
                   ),
@@ -326,6 +326,344 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showDownloadModal(dynamic prescription) {
+    bool _saved = false;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Container(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+            decoration: BoxDecoration(
+              color: kWhiteColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: kSearchBackgroundColor,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Prescription PDF',
+                  style: TextStyle(
+                      color: kTitleTextColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Prescribed by ${prescription.doctorName}',
+                  style: TextStyle(color: kSearchTextColor, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                // Preview card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: kBackgroundColor,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: kBlueColor.withOpacity(0.12)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.picture_as_pdf_outlined,
+                              color: kBlueColor),
+                          const SizedBox(width: 10),
+                          Text('KazHealth_Prescription.pdf',
+                              style: TextStyle(
+                                  color: kTitleTextColor,
+                                  fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ...prescription.medicines
+                          .take(3)
+                          .map<Widget>((m) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  '• ${m.name}  ${m.dosage}',
+                                  style: TextStyle(
+                                      color: kTitleTextColor, fontSize: 13),
+                                ),
+                              ))
+                          .toList(),
+                      if (prescription.medicines.length > 3)
+                        Text(
+                          '+ ${prescription.medicines.length - 3} more items',
+                          style: TextStyle(
+                              color: kBlueColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      const SizedBox(height: 8),
+                      Text(
+                        prescription.notes,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: kSearchTextColor, fontSize: 12, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (!_saved) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setSheetState(() => _saved = true);
+                      },
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text('Save to device'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kBlueColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xff2E7D32).withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: const Color(0xff2E7D32).withOpacity(0.25)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            color: const Color(0xff2E7D32)),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Saved to device (preview only)',
+                          style: TextStyle(
+                            color: const Color(0xff2E7D32),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBlueColor,
+                        side: BorderSide(color: kBlueColor.withOpacity(0.25)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  void _showShareModal(dynamic prescription) {
+    final _emailCtrl = TextEditingController();
+    bool _sent = false;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Padding(
+            padding:
+                EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+              decoration: BoxDecoration(
+                color: kWhiteColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: kSearchBackgroundColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Share prescription',
+                    style: TextStyle(
+                        color: kTitleTextColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Send to a pharmacy, clinic, or caregiver.',
+                    style: TextStyle(color: kSearchTextColor, fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+                  if (!_sent) ...[
+                    // WhatsApp option
+                    _ShareOptionTile(
+                      icon: Icons.chat_rounded,
+                      label: 'Send via WhatsApp',
+                      sublabel: 'Opens WhatsApp with prescription summary',
+                      color: const Color(0xff25D366),
+                      onTap: () => setSheetState(() => _sent = true),
+                    ),
+                    const SizedBox(height: 10),
+                    // Email option
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: kBackgroundColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: kBlueColor.withOpacity(0.12)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.email_outlined,
+                                  color: kBlueColor, size: 20),
+                              const SizedBox(width: 8),
+                              Text('Send via email',
+                                  style: TextStyle(
+                                      color: kTitleTextColor,
+                                      fontWeight: FontWeight.w800)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _emailCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              hintText: 'recipient@example.com',
+                              hintStyle: TextStyle(color: kSearchTextColor),
+                              filled: true,
+                              fillColor: kWhiteColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: kBlueColor.withOpacity(0.15)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: kBlueColor.withOpacity(0.15)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 46,
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  setSheetState(() => _sent = true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kBlueColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Send email'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff2E7D32).withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: const Color(0xff2E7D32).withOpacity(0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              color: const Color(0xff2E7D32)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Sent (preview only) — backend delivery will be connected in the live build.',
+                              style: TextStyle(
+                                color: const Color(0xff2E7D32),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: kBlueColor,
+                          side: BorderSide(color: kBlueColor.withOpacity(0.25)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        });
+      },
     );
   }
 
@@ -776,6 +1114,62 @@ class PrescriptionDetailScreen extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShareOptionTile extends StatelessWidget {
+  const _ShareOptionTile({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withOpacity(0.16),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            color: kTitleTextColor,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(sublabel,
+                        style:
+                            TextStyle(color: kSearchTextColor, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: color),
+            ],
+          ),
         ),
       ),
     );
