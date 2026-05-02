@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Get trusted medical consultations from licensed professionals right on your phone, wherever you are.',
     ),
     OnboardingSlide(
-      imagePath: 'assets/images/onboarding_appointments.png',
+      imagePath: 'assets/images/onboarding_book_appointments.png',
       title: 'Book Appointments\nEasily',
       description:
           'Choose your preferred doctor, select a convenient time, and schedule your consultation in just a few taps.',
