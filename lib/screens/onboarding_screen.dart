@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:doctor_consultation_app/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -12,493 +11,238 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _slides = [
-    _OnboardingSlide(
-      imagePath: 'assets/images/onboarding_talk_doctors.png',
-      title: 'Care that starts with the right person',
-      description:
-          'Choose whether you are joining KazHealth to book care or to provide care, then move straight into the right registration path.',
-    ),
-    _OnboardingSlide(
-      imagePath: 'assets/images/onboarding_book_appointments.png',
-      title: 'Appointments, records, and follow-up in one place',
-      description:
-          'Patients can book quickly while doctors manage schedules, consultation flow, and verification from the same product language.',
-    ),
-    _OnboardingSlide(
-      imagePath: 'assets/images/onboarding_care_secure.png',
-      title: 'Built for trusted digital consultation',
-      description:
-          'Profiles, documents, and communication stay structured so both patients and providers can move with confidence.',
-    ),
-  ];
-
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
+
   Timer? _autoSlideTimer;
   int _currentPage = 0;
-  bool _didPrecacheSlides = false;
-  String _selectedRole = 'patient';
+  bool _isNavigating = false;
+
+  final List<String> _images = const [
+    'assets/images/onboarding_talk_doctors.png',
+    'assets/images/onboarding_care_secure.png',
+    'assets/images/onboarding_appointments.png',
+  ];
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-    _scheduleAutoSlide();
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+
+    _startAutoSlide();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_didPrecacheSlides) {
-      return;
-    }
 
-    for (final slide in _slides) {
-      precacheImage(AssetImage(slide.imagePath), context);
+    for (final image in _images) {
+      precacheImage(AssetImage(image), context);
     }
-    _didPrecacheSlides = true;
+  }
+
+  void _startAutoSlide() {
+    _autoSlideTimer?.cancel();
+
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageController.hasClients || _isNavigating) return;
+
+      if (_currentPage < _images.length - 1) {
+        _pageController.animateToPage(
+          _currentPage + 1,
+          duration: const Duration(milliseconds: 850),
+          curve: Curves.easeInOutCubic,
+        );
+      } else {
+        _goToSignup();
+      }
+    });
+  }
+
+  void _goToSignup() {
+    if (_isNavigating) return;
+
+    _isNavigating = true;
+    _autoSlideTimer?.cancel();
+
+    Get.offNamed('/signup');
+  }
+
+  void _nextPage() {
+    _autoSlideTimer?.cancel();
+
+    if (_currentPage < _images.length - 1) {
+      _pageController.animateToPage(
+        _currentPage + 1,
+        duration: const Duration(milliseconds: 750),
+        curve: Curves.easeOutCubic,
+      );
+      _startAutoSlide();
+    } else {
+      _goToSignup();
+    }
+  }
+
+  void _skip() {
+    _goToSignup();
   }
 
   @override
   void dispose() {
     _autoSlideTimer?.cancel();
     _pageController.dispose();
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
     super.dispose();
-  }
-
-  void _scheduleAutoSlide() {
-    _autoSlideTimer?.cancel();
-    _autoSlideTimer = Timer(const Duration(seconds: 4), () {
-      if (!mounted || !_pageController.hasClients) {
-        return;
-      }
-
-      final nextPage = (_currentPage + 1) % _slides.length;
-      _animateToPage(nextPage);
-    });
-  }
-
-  void _animateToPage(int page, {bool isManual = false}) {
-    _pageController.animateToPage(
-      page,
-      duration: Duration(milliseconds: isManual ? 520 : 720),
-      curve: isManual ? Curves.easeOutCubic : Curves.easeInOutCubicEmphasized,
-    );
-  }
-
-  void _continueToSignup() {
-    final arguments =
-        _selectedRole == 'doctor' ? <String, dynamic>{'role': 'doctor'} : null;
-    Get.offNamed('/signup', arguments: arguments);
-  }
-
-  void _openLogin() {
-    Get.offNamed('/login');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-          child: Column(
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 18),
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    if (notification is ScrollStartNotification) {
-                      _autoSlideTimer?.cancel();
-                    }
-                    if (notification is ScrollEndNotification) {
-                      _scheduleAutoSlide();
-                    }
-                    return false;
-                  },
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _slides.length,
-                    allowImplicitScrolling: true,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: _images.length,
+            onPageChanged: (index) {
+              setState(() => _currentPage = index);
+            },
+            itemBuilder: (context, index) {
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  double value = 1.0;
+
+                  if (_pageController.position.haveDimensions) {
+                    value = _pageController.page! - index;
+                    value = (1 - (value.abs() * 0.08)).clamp(0.92, 1.0);
+                  }
+
+                  return Opacity(
+                    opacity: value.clamp(0.0, 1.0),
+                    child: Transform.scale(
+                      scale: value,
+                      child: child,
                     ),
-                    onPageChanged: (page) {
-                      setState(() => _currentPage = page);
-                      _scheduleAutoSlide();
-                    },
-                    itemBuilder: (context, index) {
-                      final slide = _slides[index];
-                      return AnimatedBuilder(
-                        animation: _pageController,
-                        builder: (context, child) {
-                          double distance = 0;
-                          if (_pageController.hasClients &&
-                              _pageController.position.haveDimensions) {
-                            distance = (_pageController.page! - index).abs();
-                          } else {
-                            distance = (_currentPage - index).abs().toDouble();
-                          }
-
-                          final opacity = (1 - distance * 0.22).clamp(0.0, 1.0);
-                          final scale = (1 - distance * 0.035).clamp(0.96, 1.0);
-
-                          return Opacity(
-                            opacity: opacity,
-                            child: Transform.scale(scale: scale, child: child),
-                          );
-                        },
-                        child: _buildSlideCard(slide),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              _buildPageIndicators(),
-              const SizedBox(height: 18),
-              _buildRoleSelector(),
-              const SizedBox(height: 16),
-              _buildPrimaryButton(),
-              const SizedBox(height: 10),
-              _buildLoginButton(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: kBlueColor,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(Icons.local_hospital_rounded, color: kWhiteColor),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'KazHealth',
-                style: TextStyle(
-                  color: kTitleTextColor,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose your entry path before you create an account.',
-                style: TextStyle(
-                  color: kSearchTextColor,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSlideCard(_OnboardingSlide slide) {
-    return Container(
-      decoration: BoxDecoration(
-        color: kWhiteColor,
-        borderRadius: BorderRadius.circular(34),
-        border: Border.all(color: kSearchBackgroundColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(26),
-                child: Container(
+                  );
+                },
+                child: Image.asset(
+                  _images[index],
                   width: double.infinity,
-                  color: Colors.white,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final dpr = MediaQuery.of(context).devicePixelRatio;
-                      final targetWidth =
-                          (constraints.maxWidth * dpr).round().clamp(1, 4096);
-
-                      return Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Image.asset(
-                          slide.imagePath,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                          filterQuality: FilterQuality.high,
-                          isAntiAlias: true,
-                          cacheWidth: targetWidth,
-                          gaplessPlayback: true,
-                        ),
-                      );
-                    },
-                  ),
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
                 ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              flex: 2,
+              );
+            },
+          ),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 46,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 34),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: kSearchBackgroundColor,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Digital consultation platform',
-                      style: TextStyle(
-                        color: kCategoryTextColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                  GestureDetector(
+                    onTap: _nextPage,
+                    child: Container(
+                      height: 64,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1268F3),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1268F3).withOpacity(0.25),
+                            blurRadius: 22,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _currentPage == _images.length - 1
+                                ? 'Get Started'
+                                : 'Next',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 90),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    slide.title,
-                    style: TextStyle(
-                      color: kTitleTextColor,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      height: 1.1,
-                      letterSpacing: -0.7,
-                    ),
+
+                  const SizedBox(height: 24),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          color: const Color(0xFFE6EAF0),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'or',
+                          style: TextStyle(
+                            color: Color(0xFF7B8794),
+                            fontSize: 22,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          color: const Color(0xFFE6EAF0),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    slide.description,
-                    style: TextStyle(
-                      color: kSearchTextColor,
-                      fontSize: 13,
-                      height: 1.5,
+
+                  const SizedBox(height: 18),
+
+                  GestureDetector(
+                    onTap: _skip,
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: Color(0xFF1268F3),
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPageIndicators() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        _slides.length,
-        (index) {
-          final isActive = index == _currentPage;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 26 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: isActive ? kBlueColor : kSearchBackgroundColor,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildRoleSelector() {
-    return Row(
-      children: [
-        Expanded(
-          child: _RoleCard(
-            icon: Icons.person_outline_rounded,
-            title: 'Patient',
-            subtitle: 'Book visits, manage records, and follow up.',
-            isSelected: _selectedRole == 'patient',
-            onTap: () => setState(() => _selectedRole = 'patient'),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _RoleCard(
-            icon: Icons.medical_services_outlined,
-            title: 'Doctor',
-            subtitle: 'Complete verification and start consultations.',
-            isSelected: _selectedRole == 'doctor',
-            onTap: () => setState(() => _selectedRole = 'doctor'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPrimaryButton() {
-    final label = _selectedRole == 'doctor'
-        ? 'Continue as Doctor'
-        : 'Continue as Patient';
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _continueToSignup,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kBlueColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(Icons.arrow_forward_rounded),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: _openLogin,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: kTitleTextColor,
-          side: BorderSide(color: kSearchBackgroundColor),
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-        ),
-        child: const Text(
-          'I already have an account',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-}
-
-class _OnboardingSlide {
-  const _OnboardingSlide({
-    required this.imagePath,
-    required this.title,
-    required this.description,
-  });
-
-  final String imagePath;
-  final String title;
-  final String description;
-}
-
-class _RoleCard extends StatelessWidget {
-  const _RoleCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : kWhiteColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isSelected ? kBlueColor : kSearchBackgroundColor,
-              width: isSelected ? 1.6 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: isSelected ? kBlueColor : kSearchBackgroundColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : kCategoryTextColor,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                style: TextStyle(
-                  color: kTitleTextColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: kSearchTextColor,
-                  fontSize: 12,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
