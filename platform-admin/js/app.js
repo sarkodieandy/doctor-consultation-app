@@ -231,12 +231,6 @@ function bindEvents() {
     showLogin();
   });
 
-  $("#demoButton").addEventListener("click", () => {
-    hydratePreview();
-    openDashboard({ previewMode: true });
-    toast("Using preview dashboard");
-  });
-
   $("#authForm").addEventListener("submit", signIn);
 
   $("#searchInput").addEventListener("input", (event) => {
@@ -290,9 +284,7 @@ async function signIn(event) {
   const email = resolveLoginEmail($("#adminEmail").value.trim());
   const password = $("#adminPassword").value;
   if (!db) {
-    hydratePreview();
-    openDashboard({ previewMode: true });
-    toast("Supabase client unavailable, using preview data");
+    toast("Supabase client unavailable. Check your internet connection and try again.");
     return;
   }
   if (!email || !password) {
@@ -342,15 +334,13 @@ async function isAdminSession() {
   }
 }
 
-async function openDashboard({ previewMode = false } = {}) {
+async function openDashboard() {
   document.body.classList.remove("logged-out");
   state.view = "dashboard";
   window.location.hash = "dashboard";
-  if (!previewMode) {
-    await loadData();
-  }
+  await loadData();
   render();
-  if (!previewMode && db) subscribeRealtime();
+  if (db) subscribeRealtime();
 }
 
 function showLogin() {
@@ -362,7 +352,14 @@ function showLogin() {
 async function loadData() {
   state.usingPreview = false;
   if (!db) {
-    hydratePreview(true);
+    state.profiles = [];
+    state.doctors = [];
+    state.appointments = [];
+    state.payments = [];
+    state.reviews = [];
+    state.notifications = [];
+    state.settings = [];
+    state.specialties = [];
     return;
   }
   const [profiles, doctors, appointments, payments, reviews, notifications, settings, specialties] =
@@ -386,16 +383,6 @@ async function loadData() {
   state.settings = settings;
   state.specialties = specialties;
 
-  const hasLiveData =
-    profiles.length ||
-    doctors.length ||
-    appointments.length ||
-    payments.length ||
-    reviews.length ||
-    notifications.length ||
-    settings.length ||
-    specialties.length;
-  if (!hasLiveData) hydratePreview(true);
 }
 
 async function selectTable(table) {
