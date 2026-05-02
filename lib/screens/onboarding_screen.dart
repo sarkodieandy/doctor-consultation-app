@@ -232,55 +232,79 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
+              flex: 3,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(26),
                 child: Container(
                   width: double.infinity,
                   color: Colors.white,
-                  child: Image.asset(
-                    slide.imagePath,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    filterQuality: FilterQuality.high,
-                    gaplessPlayback: true,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final dpr = MediaQuery.of(context).devicePixelRatio;
+                      final targetWidth =
+                          (constraints.maxWidth * dpr).round().clamp(1, 4096);
+
+                      return Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Image.asset(
+                          slide.imagePath,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          filterQuality: FilterQuality.high,
+                          isAntiAlias: true,
+                          cacheWidth: targetWidth,
+                          gaplessPlayback: true,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: kSearchBackgroundColor,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                'Digital consultation platform',
-                style: TextStyle(
-                  color: kCategoryTextColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              slide.title,
-              style: TextStyle(
-                color: kTitleTextColor,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
-                letterSpacing: -0.7,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              slide.description,
-              style: TextStyle(
-                color: kSearchTextColor,
-                fontSize: 14,
-                height: 1.5,
+            const SizedBox(height: 14),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: kSearchBackgroundColor,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Digital consultation platform',
+                      style: TextStyle(
+                        color: kCategoryTextColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    slide.title,
+                    style: TextStyle(
+                      color: kTitleTextColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                      letterSpacing: -0.7,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    slide.description,
+                    style: TextStyle(
+                      color: kSearchTextColor,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -74,6 +74,14 @@ class MyApp extends StatelessWidget {
         defaultTransition: Transition.rightToLeftWithFade,
         transitionDuration: const Duration(milliseconds: 280),
         popGesture: true,
+        builder: (context, child) {
+          return Listener(
+            onPointerDown: (_) {
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         theme: ThemeData(
           textTheme:
               GoogleFonts.varelaRoundTextTheme(Theme.of(context).textTheme),
