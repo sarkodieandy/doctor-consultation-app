@@ -32,7 +32,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _agreeToTerms = false;
   String? _errorMessage;
   bool _isDoctor = false;
-  String? _verifiedPhoneNumber;
   PlatformFile? _licenseDocumentFile;
   XFile? _profilePictureFile;
   Uint8List? _profilePictureBytes;
@@ -63,16 +62,6 @@ class _SignupScreenState extends State<SignupScreen> {
     if (args is Map && args['role'] == 'doctor') {
       _isDoctor = true;
     }
-    _phoneController.addListener(_handlePhoneChanged);
-  }
-
-  void _handlePhoneChanged() {
-    final currentPhone = _phoneController.text.trim();
-    if (_verifiedPhoneNumber != null && currentPhone != _verifiedPhoneNumber) {
-      setState(() {
-        _verifiedPhoneNumber = null;
-      });
-    }
   }
 
   @override
@@ -80,7 +69,6 @@ class _SignupScreenState extends State<SignupScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
-    _phoneController.removeListener(_handlePhoneChanged);
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -160,208 +148,6 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  Future<void> _showPhoneVerificationPreview() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      setState(() {
-        _errorMessage =
-            'Enter your phone number before requesting verification';
-      });
-      return;
-    }
-
-    const previewCode = '274913';
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final codeControllers = List.generate(
-          6,
-          (_) => TextEditingController(),
-        );
-
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: StatefulBuilder(
-            builder: (context, setSheetState) {
-              String enteredCode =
-                  codeControllers.map((controller) => controller.text).join();
-
-              return Container(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
-                decoration: BoxDecoration(
-                  color: kWhiteColor,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: const Color(0xffD7E3FF)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: kSearchBackgroundColor,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(Icons.sms_outlined, color: kBlueColor),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Phone verification preview',
-                                style: TextStyle(
-                                  color: kTitleTextColor,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Backend SMS is not connected in this APK build.',
-                                style: TextStyle(
-                                  color: kSearchTextColor,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xffEEF4FF),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Preview code sent to $phone',
-                            style: TextStyle(
-                              color: kTitleTextColor,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            previewCode,
-                            style: TextStyle(
-                              color: kBlueColor,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 4,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'This preview code is shown inside the app so stakeholders can review the flow before backend integration.',
-                            style: TextStyle(
-                              color: kSearchTextColor,
-                              fontSize: 12,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: List.generate(
-                        6,
-                        (index) => Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(right: index == 5 ? 0 : 8),
-                            child: TextField(
-                              controller: codeControllers[index],
-                              maxLength: 1,
-                              textAlign: TextAlign.center,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                counterText: '',
-                                filled: true,
-                                fillColor: const Color(0xffEEF2FF),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(
-                                    color: const Color(0xffD0D7F5),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(
-                                    color: kBlueColor,
-                                    width: 1.6,
-                                  ),
-                                ),
-                              ),
-                              onChanged: (_) => setSheetState(() {}),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: enteredCode.length == 6
-                            ? () {
-                                setState(() {
-                                  _verifiedPhoneNumber = phone;
-                                  _errorMessage = null;
-                                });
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text(
-                                        'Phone verified locally for preview build'),
-                                    backgroundColor: kBlueColor,
-                                  ),
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kBlueColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          'Confirm verification preview',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
   void _signup() async {
     // Validate common fields
     if (_firstNameController.text.isEmpty ||
@@ -378,13 +164,6 @@ class _SignupScreenState extends State<SignupScreen> {
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
         _errorMessage = 'Passwords do not match';
-      });
-      return;
-    }
-
-    if (_verifiedPhoneNumber != _phoneController.text.trim()) {
-      setState(() {
-        _errorMessage = 'Verify your phone number to continue';
       });
       return;
     }
@@ -451,7 +230,14 @@ class _SignupScreenState extends State<SignupScreen> {
         );
 
         if (success) {
-          Get.offNamed('/pending-approval');
+          Get.offNamed(
+            '/otp-verification',
+            arguments: {
+              'phone': _phoneController.text.trim(),
+              'isDoctor': true,
+              'firstName': _firstNameController.text.trim(),
+            },
+          );
         }
       } else {
         success = await _authService.signup(
@@ -464,7 +250,14 @@ class _SignupScreenState extends State<SignupScreen> {
         );
 
         if (success) {
-          Get.offNamed('/home');
+          Get.offNamed(
+            '/otp-verification',
+            arguments: {
+              'phone': _phoneController.text.trim(),
+              'isDoctor': false,
+              'firstName': _firstNameController.text.trim(),
+            },
+          );
         }
       }
     } catch (e) {
@@ -1186,9 +979,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildPhoneVerificationCard() {
-    final isVerified = _verifiedPhoneNumber == _phoneController.text.trim() &&
-        _verifiedPhoneNumber != null;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1196,8 +986,8 @@ class _SignupScreenState extends State<SignupScreen> {
         color: kWhiteColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isVerified ? kBlueColor : const Color(0xffD0D7F5),
-          width: isVerified ? 1.4 : 1,
+          color: const Color(0xffD0D7F5),
+          width: 1,
         ),
       ),
       child: Row(
@@ -1206,13 +996,10 @@ class _SignupScreenState extends State<SignupScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: isVerified ? kBlueColor : kSearchBackgroundColor,
+              color: kSearchBackgroundColor,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              isVerified ? Icons.verified_rounded : Icons.sms_outlined,
-              color: isVerified ? Colors.white : kBlueColor,
-            ),
+            child: Icon(Icons.sms_outlined, color: kBlueColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1220,9 +1007,7 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isVerified
-                      ? 'Phone number verified for preview'
-                      : 'Phone verification preview',
+                  'OTP verification is simulated',
                   style: TextStyle(
                     color: kTitleTextColor,
                     fontWeight: FontWeight.w700,
@@ -1230,9 +1015,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isVerified
-                      ? 'This local verification state will let the APK demonstrate the OTP flow.'
-                      : 'Show a local OTP sheet so the client can review the verification experience before SMS backend work starts.',
+                  'After account creation, you will see a standalone OTP screen and then a success animation screen.',
                   style: TextStyle(
                     color: kSearchTextColor,
                     fontSize: 12,
@@ -1240,21 +1023,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: _isLoading ? null : _showPhoneVerificationPreview,
-            style: TextButton.styleFrom(
-              foregroundColor: kBlueColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              isVerified ? 'Preview' : 'Verify',
-              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],

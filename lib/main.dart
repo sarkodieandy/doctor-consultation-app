@@ -8,6 +8,7 @@ import 'package:doctor_consultation_app/controllers/prescription_controller.dart
 import 'package:doctor_consultation_app/controllers/review_controller.dart';
 import 'package:doctor_consultation_app/config/supabase_config.dart';
 import 'package:doctor_consultation_app/screens/booking_screen.dart';
+import 'package:doctor_consultation_app/screens/account_created_success_screen.dart';
 import 'package:doctor_consultation_app/screens/care_timeline_screen.dart';
 import 'package:doctor_consultation_app/screens/chat_screen.dart';
 import 'package:doctor_consultation_app/screens/consultation_screen.dart';
@@ -26,6 +27,7 @@ import 'package:doctor_consultation_app/screens/signup_screen.dart';
 import 'package:doctor_consultation_app/screens/my_appointments_screen.dart';
 import 'package:doctor_consultation_app/screens/notifications_screen.dart';
 import 'package:doctor_consultation_app/screens/onboarding_screen.dart';
+import 'package:doctor_consultation_app/screens/otp_verification_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_screen.dart';
 import 'package:doctor_consultation_app/screens/payment_method_screen.dart';
 import 'package:doctor_consultation_app/screens/prescriptions_screen.dart';
@@ -102,6 +104,14 @@ class MyApp extends StatelessWidget {
           GetPage(
             name: '/signup',
             page: () => SignupScreen(),
+          ),
+          GetPage(
+            name: '/otp-verification',
+            page: () => const OtpVerificationScreen(),
+          ),
+          GetPage(
+            name: '/account-created-success',
+            page: () => const AccountCreatedSuccessScreen(),
           ),
           GetPage(
             name: '/onboarding',

@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:doctor_consultation_app/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -25,29 +24,26 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
-
-  Timer? _autoSlideTimer;
   int _currentPage = 0;
-  bool _isNavigating = false;
 
   final List<OnboardingSlide> _slides = const [
     OnboardingSlide(
-      imagePath: 'assets/images/onboarding_talk_doctors.png',
-      title: 'Talk to Doctors\nAnytime',
+      imagePath: 'assets/images/doctor1.png',
+      title: 'Choose Trusted\nDoctors',
       description:
-          'Get trusted medical consultations from licensed professionals right on your phone, wherever you are.',
+          'Browse verified doctors and find the right specialist for your health needs.',
     ),
     OnboardingSlide(
-      imagePath: 'assets/images/onboarding_book_appointments.png',
-      title: 'Book Appointments\nEasily',
+      imagePath: 'assets/images/doctor2.png',
+      title: 'Book Consultations\nQuickly',
       description:
-          'Choose your preferred doctor, select a convenient time, and schedule your consultation in just a few taps.',
+          'Schedule appointments in seconds and manage your health care in one place.',
     ),
     OnboardingSlide(
-      imagePath: 'assets/images/onboarding_care_secure.png',
-      title: 'Your Care,\nSafely Managed',
+      imagePath: 'assets/images/doctor3.png',
+      title: 'Care Anywhere\nAnytime',
       description:
-          'Access prescriptions, consultation history, and follow-up care securely in one convenient place.',
+          'Connect with doctors from home and keep your records available whenever you need them.',
     ),
   ];
 
@@ -60,12 +56,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
+        systemNavigationBarColor: Color(0xffEAF1FF),
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
-
-    _startAutoSlide();
   }
 
   @override
@@ -77,218 +71,168 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  void _startAutoSlide() {
-    _autoSlideTimer?.cancel();
-
-    _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_pageController.hasClients || _isNavigating) return;
-
-      if (_currentPage < _slides.length - 1) {
-        _pageController.animateToPage(
-          _currentPage + 1,
-          duration: const Duration(milliseconds: 850),
-          curve: Curves.easeInOutCubic,
-        );
-      } else {
-        _goToSignup();
-      }
-    });
+  void _goToSignup() {
+    Get.offNamed('/signup');
   }
 
-  void _goToSignup() {
-    if (_isNavigating) return;
+  void _goNext() {
+    if (_currentPage == _slides.length - 1) {
+      _goToSignup();
+      return;
+    }
 
-    _isNavigating = true;
-    _autoSlideTimer?.cancel();
-
-    Get.offNamed('/signup');
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
-    _autoSlideTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const blue = Color(0xFF1268F3);
-    const titleColor = Color(0xFF071B45);
-    const bodyColor = Color(0xFF738099);
-
-    final size = MediaQuery.of(context).size;
-    final topPadding = MediaQuery.of(context).padding.top;
-
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          SizedBox(height: topPadding + 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_slides.length, (index) {
-              final isActive = index == _currentPage;
-
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 280),
-                margin: const EdgeInsets.symmetric(horizontal: 5),
-                width: isActive ? 14 : 10,
-                height: isActive ? 14 : 10,
-                decoration: BoxDecoration(
-                  color: isActive ? blue : const Color(0xFFD9DCE1),
-                  shape: BoxShape.circle,
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            flex: 6,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _slides.length,
-              physics: const BouncingScrollPhysics(),
-              onPageChanged: (index) {
-                setState(() => _currentPage = index);
-              },
-              itemBuilder: (context, index) {
-                final slide = _slides[index];
-
-                return AnimatedBuilder(
-                  animation: _pageController,
-                  builder: (context, child) {
-                    double value = 1.0;
-
-                    if (_pageController.position.haveDimensions) {
-                      value = (_pageController.page ?? 0) - index;
-                      value = (1 - value.abs() * 0.08).clamp(0.92, 1.0);
-                    }
-
-                    return Opacity(
-                      opacity: value.clamp(0.0, 1.0),
-                      child: Transform.scale(
-                        scale: value,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(32),
-                      child: Image.asset(
-                        slide.imagePath,
-                        width: double.infinity,
-                        height: size.height * 0.55,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                        filterQuality: FilterQuality.high,
+      backgroundColor: kBackgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _goToSignup,
+                    child: Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: kSearchTextColor,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(32, 20, 32, 40),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 450),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.08),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      ),
-                      child: child,
-                    ),
-                  );
-                },
-                child: Column(
-                  key: ValueKey(_currentPage),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
-                                blurRadius: 16,
-                                offset: const Offset(0, 8),
+                ],
+              ),
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _slides.length,
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index);
+                  },
+                  itemBuilder: (context, index) {
+                    final slide = _slides[index];
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOut,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(top: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
                               ),
-                            ],
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(30),
+                                child: Image.asset(
+                                  slide.imagePath,
+                                  fit: BoxFit.cover,
+                                  alignment: Alignment.topCenter,
+                                ),
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            color: blue,
-                            size: 34,
+                          const SizedBox(height: 24),
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  slide.title,
+                                  style: TextStyle(
+                                    color: kTitleTextColor,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 34,
+                                    height: 1.12,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  slide.description,
+                                  style: TextStyle(
+                                    color: kSearchTextColor,
+                                    fontSize: 15,
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Text(
-                          'KazHealth',
-                          style: TextStyle(
-                            color: blue,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 34),
-                    Text(
-                      _slides[_currentPage].title,
-                      style: const TextStyle(
-                        color: titleColor,
-                        fontSize: 38,
-                        height: 1.12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.8,
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      _slides[_currentPage].description,
-                      style: const TextStyle(
-                        color: bodyColor,
-                        fontSize: 17,
-                        height: 1.55,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Center(
-                      child: Text(
-                        'Redirecting...',
-                        style: TextStyle(
-                          color: bodyColor.withOpacity(0.75),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Row(
+                    children: List.generate(_slides.length, (index) {
+                      final isActive = index == _currentPage;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 240),
+                        margin: const EdgeInsets.only(right: 8),
+                        width: isActive ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color:
+                              isActive ? kBlueColor : const Color(0xffBFCDEB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      );
+                    }),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _goNext,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: kOrangeColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 26),
+                      ),
+                      child: Text(
+                        _currentPage == _slides.length - 1
+                            ? 'Get Started'
+                            : 'Next',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
