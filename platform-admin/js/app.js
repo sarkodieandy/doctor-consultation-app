@@ -21,6 +21,7 @@ const state = {
   notifications: [],
   settings: [],
   specialties: [],
+  auditLog: [],
 };
 
 const preview = {
@@ -166,6 +167,7 @@ const preview = {
     { id: "spec_2", name: "Dermatologist", active: true },
     { id: "spec_3", name: "Paediatrician", active: true },
   ],
+  auditLog: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -255,6 +257,11 @@ function bindEvents() {
     await loadData();
     renderDoctors();
     toast("Doctor directory refreshed");
+  });
+  $("#refreshAuditButton")?.addEventListener("click", async () => {
+    state.auditLog = await selectTable("audit_log", { orderBy: "created_at", ascending: false });
+    renderAudit();
+    toast("Audit log refreshed");
   });
   $("#notificationForm").addEventListener("submit", sendNotification);
   $("#settingsForm").addEventListener("submit", saveSettings);
@@ -360,18 +367,20 @@ async function loadData() {
     state.notifications = [];
     state.settings = [];
     state.specialties = [];
+    state.auditLog = [];
     return;
   }
-  const [profiles, doctors, appointments, payments, reviews, notifications, settings, specialties] =
+  const [profiles, doctors, appointments, payments, reviews, notifications, settings, specialties, auditLog] =
     await Promise.all([
-      selectTable("profiles"),
+      selectTable("profiles", { orderBy: "created_at", ascending: false }),
       selectTable("doctors"),
-      selectTable("appointments"),
-      selectTable("payments"),
-      selectTable("reviews"),
-      selectTable("notifications"),
+      selectTable("appointments", { orderBy: "appointment_date", ascending: false }),
+      selectTable("payments", { orderBy: "created_at", ascending: false }),
+      selectTable("reviews", { orderBy: "created_at", ascending: false }),
+      selectTable("notifications", { orderBy: "created_at", ascending: false }),
       selectTable("settings"),
-      selectTable("specialties"),
+      selectTable("specialties", { orderBy: "name", ascending: true }),
+      selectTable("audit_log", { orderBy: "created_at", ascending: false }),
     ]);
 
   state.profiles = profiles;
@@ -382,15 +391,21 @@ async function loadData() {
   state.notifications = notifications;
   state.settings = settings;
   state.specialties = specialties;
+  state.auditLog = auditLog;
 
 }
 
-async function selectTable(table) {
+async function selectTable(table, options = {}) {
   try {
-    const { data, error } = await db.from(table).select("*").limit(500);
+    let query = db.from(table).select("*").limit(options.limit || 500);
+    if (options.orderBy) {
+      query = query.order(options.orderBy, { ascending: options.ascending !== false });
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
-  } catch (_) {
+  } catch (error) {
+    console.warn(`Unable to load ${table}:`, error?.message || error);
     return [];
   }
 }
@@ -405,6 +420,7 @@ function hydratePreview(silent = false) {
   state.notifications = [...preview.notifications];
   state.settings = [...preview.settings];
   state.specialties = [...preview.specialties];
+  state.auditLog = [...preview.auditLog];
   if (!silent) updateConnection("offline", "Preview data", "Supabase tables are empty or blocked");
 }
 
@@ -432,6 +448,7 @@ function renderActiveView() {
     reviews: renderReviews,
     notifications: renderNotifications,
     settings: renderSettings,
+    audit: renderAudit,
   };
   renderers[state.view]?.();
 }
@@ -528,7 +545,7 @@ function renderDoctors() {
   const doctors = allDoctors.filter((doctor) => doctorMatchesFilter(doctor));
   const pending = state.doctors.filter((doctor) => normalizeStatus(doctor.approval_status) === "pending").length;
   const approved = state.doctors.filter((doctor) => normalizeStatus(doctor.approval_status) === "approved").length;
-  const suspended = state.doctors.filter((doctor) => doctor.deactivated).length;
+  const suspended = state.doctors.filter((doctor) => isDoctorSuspended(doctor)).length;
   const payoutReady = state.doctors.filter((doctor) => doctor.mobile_money_number || doctor.payout_recipient_code).length;
 
   $("#doctorStats").innerHTML = [
@@ -558,7 +575,7 @@ function renderDoctors() {
               <div class="doctor-heading">
                 <div class="doctor-title-row">
                   <h2>${fullDoctorName(doctor)}</h2>
-                  <span class="status ${doctor.deactivated ? "cancelled" : status}">${doctor.deactivated ? "Suspended" : capitalize(status)}</span>
+                  <span class="status ${isDoctorSuspended(doctor) ? "cancelled" : status}">${isDoctorSuspended(doctor) ? "Suspended" : capitalize(status)}</span>
                 </div>
                 <p>${doctor.specialty || "General Practice"} · ${doctor.experience || "Experience not set"}</p>
                 <span class="doctor-email">${doctor.email || "No email on profile"}</span>
@@ -587,7 +604,7 @@ function renderDoctors() {
               <button class="small-button success" onclick="updateDoctorStatus('${doctor.id}', 'approved')">Approve</button>
               <button class="small-button danger" onclick="updateDoctorStatus('${doctor.id}', 'rejected')">Reject</button>
               <button class="small-button neutral" onclick="copyDoctorEmail('${doctor.id}')">Copy email</button>
-              <button class="small-button danger" onclick="toggleDoctor('${doctor.id}')">${doctor.deactivated ? "Reactivate" : "Suspend"}</button>
+              <button class="small-button danger" onclick="toggleDoctor('${doctor.id}')">${isDoctorSuspended(doctor) ? "Reactivate" : "Suspend"}</button>
             </div>
           </article>
         `;
@@ -755,35 +772,73 @@ function renderSettings() {
   ].join("");
 }
 
+function renderAudit() {
+  const rows = filterRows(state.auditLog, ["action", "target_table", "target_id"]);
+  $("#auditTable").innerHTML =
+    rows
+      .slice(0, 150)
+      .map((entry) => {
+        const details = entry.details || {};
+        const admin = details.admin_email || adminName(entry.admin_id);
+        return `
+          <tr>
+            <td><strong>${humanAction(entry.action)}</strong></td>
+            <td>${entry.target_table || "platform"}<br><span>${entry.target_id || "—"}</span></td>
+            <td>${admin || "System"}</td>
+            <td>${formatDate(entry.created_at)}</td>
+            <td><span>${escapeHtml(summaryFromDetails(details))}</span></td>
+          </tr>
+        `;
+      })
+      .join("") || `<tr><td colspan="5">${emptyState("No admin actions recorded yet.")}</td></tr>`;
+}
+
+function adminName(id) {
+  const admin = state.profiles.find((profile) => profile.id === id);
+  return admin ? fullName(admin) : "";
+}
+
 async function updateDoctorStatus(id, status) {
   const doctor = state.doctors.find((item) => item.id === id);
   if (!doctor) return;
   if (status === "approved" && !doctor.license_document_path) {
-    toast("Doctor has no verification document uploaded");
-    return;
+    const proceed = confirm("This doctor has no uploaded license document. Approve anyway?");
+    if (!proceed) return;
   }
   const approvalNote =
     status === "approved"
       ? "Document reviewed and approved by KazHealth admin."
       : prompt("Reason for rejecting this doctor?", doctor.approval_note || "Document could not be verified.") ||
         "Document could not be verified.";
+  const updates = doctorApprovalUpdates(status, approvalNote);
 
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const table = doctor.source === "profiles" ? "profiles" : "doctors";
-    const { error } = await db
-      .from(table)
-      .update({ approval_status: status, approval_note: approvalNote })
-      .eq("id", id);
+    const { error } = await db.from("profiles").update(updates).eq("id", id);
     if (error) return toast(error.message);
+    await ensureDoctorDirectoryRow(doctor);
+    await notifyUser({
+      userId: id,
+      title: status === "approved" ? "Your doctor profile is approved" : "Doctor verification update",
+      message:
+        status === "approved"
+          ? "Your license has been verified. You can now appear to patients and receive consultation requests."
+          : `Your doctor profile was not approved. Reason: ${approvalNote}`,
+      targetRole: "doctor",
+      type: "verification",
+      relatedId: id,
+    });
+    await logAdminAction(`${status}_doctor`, "profiles", id, {
+      doctor_name: fullDoctorName(doctor),
+      doctor_email: doctor.email,
+      approval_note: approvalNote,
+    });
   }
 
-  doctor.approval_status = status;
-  doctor.approval_note = approvalNote;
+  Object.assign(doctor, updates);
   const profile = state.profiles.find((item) => item.id === id);
   if (profile) {
-    profile.approval_status = status;
-    profile.approval_note = approvalNote;
+    Object.assign(profile, updates);
   }
   render();
   toast(`Doctor ${status}`);
@@ -835,64 +890,34 @@ async function approveFromReview() {
   if (!_reviewingDoctorId) return;
   const notes = $("#reviewNotes").value || "Document reviewed and approved by KazHealth admin.";
   const doctor = state.doctors.find((d) => d.id === _reviewingDoctorId);
+  if (!doctor) return;
+  const updates = doctorApprovalUpdates("approved", notes);
   
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const table = doctor.source === "profiles" ? "profiles" : "doctors";
-    
-    // 1. Update approval status
-    const { error: updateError } = await db
-      .from(table)
-      .update({ 
-        approval_status: "approved", 
-        is_doctor_approved: true,
-        approval_note: notes,
-        is_active: true
-      })
-      .eq("id", _reviewingDoctorId);
+    const { error: updateError } = await db.from("profiles").update(updates).eq("id", _reviewingDoctorId);
     if (updateError) return toast(updateError.message);
+    await ensureDoctorDirectoryRow(doctor);
 
-    // 2. Create notification for doctor
-    const { error: notifError } = await db
-      .from("notifications")
-      .insert({
-        user_id: _reviewingDoctorId,
-        title: "✓ Your profile is approved!",
-        message: "Your license has been verified. You're now visible to patients in the app and can accept consultation requests.",
-        target_role: "doctor"
-      });
-    if (notifError) console.warn("Notification insert failed:", notifError);
-
-    // 3. Create audit log entry
-    const adminEmail = state.session?.user?.email || "superadmin@docconsult.app";
-    const { error: auditError } = await db
-      .from("audit_log")
-      .insert({
-        admin_id: state.session?.user?.id,
-        action: "approved_doctor",
-        target_table: "profiles",
-        target_id: _reviewingDoctorId,
-        details: {
-          doctor_name: fullDoctorName(doctor),
-          doctor_email: doctor.email,
-          admin_email: adminEmail,
-          approval_note: notes,
-          timestamp: new Date().toISOString()
-        }
-      });
-    if (auditError) console.warn("Audit log insert failed:", auditError);
+    await notifyUser({
+      userId: _reviewingDoctorId,
+      title: "Your profile is approved",
+      message: "Your license has been verified. You're now visible to patients in the app and can accept consultation requests.",
+      targetRole: "doctor",
+      type: "verification",
+      relatedId: _reviewingDoctorId,
+    });
+    await logAdminAction("approved_doctor", "profiles", _reviewingDoctorId, {
+      doctor_name: fullDoctorName(doctor),
+      doctor_email: doctor.email,
+      approval_note: notes,
+    });
   }
 
-  doctor.approval_status = "approved";
-  doctor.is_doctor_approved = true;
-  doctor.is_active = true;
-  doctor.approval_note = notes;
+  Object.assign(doctor, updates);
   const profile = state.profiles.find((p) => p.id === _reviewingDoctorId);
   if (profile) {
-    profile.approval_status = "approved";
-    profile.is_doctor_approved = true;
-    profile.is_active = true;
-    profile.approval_note = notes;
+    Object.assign(profile, updates);
   }
 
   closeDoctorReview();
@@ -904,58 +929,33 @@ async function rejectFromReview() {
   if (!_reviewingDoctorId) return;
   const reason = $("#reviewNotes").value || "Document could not be verified. Please resubmit.";
   const doctor = state.doctors.find((d) => d.id === _reviewingDoctorId);
+  if (!doctor) return;
+  const updates = doctorApprovalUpdates("rejected", reason);
 
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const table = doctor.source === "profiles" ? "profiles" : "doctors";
-    
-    // 1. Update rejection status
-    const { error: updateError } = await db
-      .from(table)
-      .update({ 
-        approval_status: "rejected", 
-        approval_note: reason
-      })
-      .eq("id", _reviewingDoctorId);
+    const { error: updateError } = await db.from("profiles").update(updates).eq("id", _reviewingDoctorId);
     if (updateError) return toast(updateError.message);
 
-    // 2. Create notification for doctor
-    const { error: notifError } = await db
-      .from("notifications")
-      .insert({
-        user_id: _reviewingDoctorId,
-        title: "✗ Document needs revision",
-        message: "Your license document couldn't be verified. Please review the feedback and submit a new document.",
-        target_role: "doctor"
-      });
-    if (notifError) console.warn("Notification insert failed:", notifError);
-
-    // 3. Create audit log entry
-    const adminEmail = state.session?.user?.email || "superadmin@docconsult.app";
-    const { error: auditError } = await db
-      .from("audit_log")
-      .insert({
-        admin_id: state.session?.user?.id,
-        action: "rejected_doctor",
-        target_table: "profiles",
-        target_id: _reviewingDoctorId,
-        details: {
-          doctor_name: fullDoctorName(doctor),
-          doctor_email: doctor.email,
-          admin_email: adminEmail,
-          rejection_reason: reason,
-          timestamp: new Date().toISOString()
-        }
-      });
-    if (auditError) console.warn("Audit log insert failed:", auditError);
+    await notifyUser({
+      userId: _reviewingDoctorId,
+      title: "Document needs revision",
+      message: `Your license document could not be verified. Reason: ${reason}`,
+      targetRole: "doctor",
+      type: "verification",
+      relatedId: _reviewingDoctorId,
+    });
+    await logAdminAction("rejected_doctor", "profiles", _reviewingDoctorId, {
+      doctor_name: fullDoctorName(doctor),
+      doctor_email: doctor.email,
+      rejection_reason: reason,
+    });
   }
 
-  doctor.approval_status = "rejected";
-  doctor.approval_note = reason;
+  Object.assign(doctor, updates);
   const profile = state.profiles.find((p) => p.id === _reviewingDoctorId);
   if (profile) {
-    profile.approval_status = "rejected";
-    profile.approval_note = reason;
+    Object.assign(profile, updates);
   }
 
   closeDoctorReview();
@@ -966,8 +966,9 @@ async function rejectFromReview() {
 async function updateAppointmentStatus(id, status) {
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const { error } = await db.from("appointments").update({ status }).eq("id", id);
+    const { error } = await db.from("appointments").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction("updated_appointment_status", "appointments", id, { status });
   }
 
   const appointment = state.appointments.find((item) => item.id === id);
@@ -981,6 +982,7 @@ async function updatePayment(id, updates) {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("payments").update(updates).eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction("updated_payment", "payments", id, updates);
   }
 
   const payment = state.payments.find((item) => item.id === id);
@@ -992,12 +994,16 @@ async function updatePayment(id, updates) {
 async function updateReviewStatus(id, status) {
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const { error } = await db.from("reviews").update({ status }).eq("id", id);
+    const { error } = await db.from("reviews").update({ status, approved: status === "approved" }).eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction("updated_review_status", "reviews", id, { status });
   }
 
   const review = state.reviews.find((item) => item.id === id);
-  if (review) review.status = status;
+  if (review) {
+    review.status = status;
+    review.approved = status === "approved";
+  }
   renderReviews();
   toast(`Review ${status}`);
 }
@@ -1008,6 +1014,7 @@ async function deleteReview(id) {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("reviews").delete().eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction("deleted_review", "reviews", id, {});
   }
   state.reviews = state.reviews.filter((item) => item.id !== id);
   renderReviews();
@@ -1023,6 +1030,7 @@ async function togglePatient(id) {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("profiles").update({ deactivated }).eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction(deactivated ? "deactivated_patient" : "reactivated_patient", "profiles", id, {});
   }
 
   patient.deactivated = deactivated;
@@ -1034,16 +1042,28 @@ async function toggleDoctor(id) {
   const doctor = state.doctors.find((item) => item.id === id);
   const profile = state.profiles.find((item) => item.id === id);
   if (!doctor && !profile) return;
-  const deactivated = !(doctor?.deactivated || profile?.deactivated);
+  const currentlySuspended = isDoctorSuspended(doctor || profile);
+  const deactivated = !currentlySuspended;
+  const isActive = !deactivated && normalizeStatus((doctor || profile).approval_status) === "approved";
 
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
-    const { error } = await db.from("profiles").update({ deactivated }).eq("id", id);
+    const { error } = await db
+      .from("profiles")
+      .update({ deactivated, is_active: isActive, updated_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction(deactivated ? "suspended_doctor" : "reactivated_doctor", "profiles", id, {
+      doctor_name: fullDoctorName(doctor || profile),
+    });
   }
 
   if (doctor) doctor.deactivated = deactivated;
-  if (profile) profile.deactivated = deactivated;
+  if (doctor) doctor.is_active = isActive;
+  if (profile) {
+    profile.deactivated = deactivated;
+    profile.is_active = isActive;
+  }
   renderDoctors();
   toast(deactivated ? "Doctor suspended" : "Doctor reactivated");
 }
@@ -1082,6 +1102,10 @@ async function addSampleDoctor() {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("profiles").insert(doctor);
     if (error) return toast(error.message);
+    await logAdminAction("created_sample_doctor", "profiles", doctor.id, {
+      doctor_name: fullDoctorName(doctor),
+      doctor_email: doctor.email,
+    });
   }
 
   state.profiles.unshift(doctor);
@@ -1106,6 +1130,10 @@ async function sendNotification(event) {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("notifications").insert(notification);
     if (error) return toast(error.message);
+    await logAdminAction("sent_notification", "notifications", notification.id, {
+      target_role: notification.target_role,
+      message,
+    });
   }
 
   state.notifications.unshift(notification);
@@ -1124,8 +1152,10 @@ async function saveSettings(event) {
 
   if (!state.usingPreview) {
     if (!db) return toast("Supabase client unavailable");
+    settings.updated_at = new Date().toISOString();
     const { error } = await db.from("settings").upsert(settings);
     if (error) return toast(error.message);
+    await logAdminAction("updated_settings", "settings", "00000000-0000-0000-0000-000000000001", settings);
   }
 
   state.settings = [settings];
@@ -1144,6 +1174,7 @@ async function addSpecialty(event) {
     const { data, error } = await db.from("specialties").insert({ name, active: true }).select().single();
     if (error) return toast(error.message);
     Object.assign(specialty, data);
+    await logAdminAction("created_specialty", "specialties", specialty.id, { name });
   }
 
   state.specialties.push(specialty);
@@ -1161,11 +1192,88 @@ async function toggleSpecialty(id) {
     if (!db) return toast("Supabase client unavailable");
     const { error } = await db.from("specialties").update({ active }).eq("id", id);
     if (error) return toast(error.message);
+    await logAdminAction(active ? "enabled_specialty" : "disabled_specialty", "specialties", id, {
+      name: specialty.name,
+    });
   }
 
   specialty.active = active;
   renderSettings();
   toast(active ? "Specialty enabled" : "Specialty disabled");
+}
+
+function doctorApprovalUpdates(status, note) {
+  return {
+    approval_status: status,
+    approval_note: note,
+    is_doctor: true,
+    is_patient: false,
+    is_doctor_approved: status === "approved",
+    is_active: status === "approved",
+    deactivated: false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function ensureDoctorDirectoryRow(doctor) {
+  if (!db || !doctor?.id) return;
+  const { error } = await db.from("doctors").upsert({
+    id: doctor.id,
+    rating: Number(doctor.rating || 0),
+    review_count: Number(doctor.review_count || 0),
+  });
+  if (error) console.warn("Doctor directory upsert failed:", error.message);
+}
+
+async function notifyUser({
+  userId,
+  title,
+  message,
+  targetRole = "all",
+  type = "admin",
+  relatedId = "",
+}) {
+  if (!db) return;
+  const notification = {
+    id: crypto.randomUUID(),
+    user_id: userId || null,
+    title,
+    message,
+    target_role: targetRole,
+    type,
+    related_id: relatedId || null,
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
+  const { error } = await db.from("notifications").insert(notification);
+  if (error) {
+    console.warn("Notification insert failed:", error.message);
+    return;
+  }
+  state.notifications.unshift(notification);
+}
+
+async function logAdminAction(action, targetTable, targetId, details = {}) {
+  if (!db) return;
+  const entry = {
+    id: crypto.randomUUID(),
+    admin_id: state.session?.user?.id || null,
+    action,
+    target_table: targetTable,
+    target_id: targetId || null,
+    details: {
+      ...details,
+      admin_email: state.session?.user?.email || "superadmin@docconsult.app",
+      timestamp: new Date().toISOString(),
+    },
+    created_at: new Date().toISOString(),
+  };
+  const { error } = await db.from("audit_log").insert(entry);
+  if (error) {
+    console.warn("Audit log insert failed:", error.message);
+    return;
+  }
+  state.auditLog.unshift(entry);
 }
 
 function normalizeDoctors(rows) {
@@ -1228,8 +1336,12 @@ function doctorStat(label, value, helper) {
 
 function doctorMatchesFilter(doctor) {
   if (state.doctorFilter === "all") return true;
-  if (state.doctorFilter === "suspended") return Boolean(doctor.deactivated);
-  return normalizeStatus(doctor.approval_status) === state.doctorFilter && !doctor.deactivated;
+  if (state.doctorFilter === "suspended") return isDoctorSuspended(doctor);
+  return normalizeStatus(doctor.approval_status) === state.doctorFilter && !isDoctorSuspended(doctor);
+}
+
+function isDoctorSuspended(doctor) {
+  return Boolean(doctor?.deactivated) || doctor?.is_active === false;
 }
 
 function listItem(title, detail, badge) {
@@ -1243,6 +1355,21 @@ function statusPill(status = "pending") {
 
 function emptyState(message) {
   return `<div class="list-item"><div><strong>${message}</strong><span>Refresh after Supabase has rows or use preview data.</span></div></div>`;
+}
+
+function humanAction(action = "") {
+  return String(action).replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function summaryFromDetails(details = {}) {
+  if (!details || typeof details !== "object") return "";
+  if (details.doctor_name) return `${details.doctor_name}${details.approval_note ? ` · ${details.approval_note}` : ""}`;
+  if (details.doctor_email) return details.doctor_email;
+  if (details.message) return details.message;
+  if (details.status) return `Status: ${details.status}`;
+  if (details.name) return details.name;
+  const keys = Object.keys(details).filter((key) => !["timestamp", "admin_email"].includes(key));
+  return keys.slice(0, 3).map((key) => `${key}: ${details[key]}`).join(" · ");
 }
 
 function filterRows(rows, keys) {
@@ -1295,6 +1422,15 @@ function escapeAttribute(value) {
     .replaceAll(">", "&gt;");
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function normalizeStatus(status = "pending") {
   return String(status || "pending").toLowerCase();
 }
@@ -1340,6 +1476,7 @@ function pageTitle(view) {
     reviews: "Review Moderation",
     notifications: "Notifications",
     settings: "Platform Settings",
+    audit: "Audit Logs",
   }[view] || "Platform Overview";
 }
 
@@ -1381,6 +1518,10 @@ function subscribeRealtime() {
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, async () => {
       state.reviews = await selectTable("reviews");
+      renderActiveView();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "audit_log" }, async () => {
+      state.auditLog = await selectTable("audit_log", { orderBy: "created_at", ascending: false });
       renderActiveView();
     })
     .subscribe((status) => {

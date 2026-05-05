@@ -24,6 +24,7 @@ create table if not exists profiles (
   license_document_path text,
   approval_note text,
   is_online boolean default false,
+  is_active boolean default true,
   payout_recipient_code text,
   deactivated boolean default false,
   created_at timestamptz default now(),
@@ -42,6 +43,7 @@ alter table profiles add column if not exists mobile_money_number text;
 alter table profiles add column if not exists license_document_path text;
 alter table profiles add column if not exists approval_note text;
 alter table profiles add column if not exists is_online boolean default false;
+alter table profiles add column if not exists is_active boolean default true;
 alter table profiles add column if not exists payout_recipient_code text;
 alter table profiles add column if not exists deactivated boolean default false;
 alter table profiles add column if not exists updated_at timestamptz default now();

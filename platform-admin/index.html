@@ -91,6 +91,7 @@
           </button>
           <div class="nav-submenu">
             <button class="nav-item" data-view="notifications"><span>Notifications</span><small>Announcements</small></button>
+            <button class="nav-item" data-view="audit"><span>Audit Logs</span><small>Admin actions</small></button>
             <button class="nav-item" data-view="settings"><span>Settings</span><small>Platform config</small></button>
           </div>
         </section>
@@ -323,6 +324,30 @@
           </form>
           <div class="activity-list" id="settingsList"></div>
         </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="audit">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Platform control</p>
+            <h2>Admin audit trail</h2>
+          </div>
+          <button class="ghost-button" id="refreshAuditButton" type="button">Refresh logs</button>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Admin</th>
+                <th>Time</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="auditTable"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 
