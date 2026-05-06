@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KazHealth Platform Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  </head>
+  <body class="logged-out">
+    <section class="login-screen" id="loginScreen">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <strong>KazHealth</strong>
+            <span>Platform Admin</span>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Secure admin access</p>
+          <h1>Sign in to manage the care platform</h1>
+          <p class="login-copy">
+            Review doctors, monitor appointments, manage patients, and coordinate platform operations from one dashboard.
+          </p>
+        </div>
+        <form id="authForm" class="login-form">
+          <label>
+            Username
+            <input id="adminEmail" type="text" value="superadmin" autocomplete="username" />
+          </label>
+          <label>
+            Password
+            <input id="adminPassword" type="password" value="123456" autocomplete="current-password" />
+          </label>
+          <button class="primary-button" type="submit">Login</button>
+        </form>
+      </div>
+    </section>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">K</div>
+        <div>
+          <strong>KazHealth</strong>
+          <span>Platform Admin</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="sidebarNav">
+        <section class="nav-group open" data-module="command">
+          <button class="module-toggle" type="button" aria-expanded="true">
+            <span><b>Command</b><small>Live operations</small></span>
+            <i></i>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-item active" data-view="dashboard"><span>Overview</span><small>Metrics & activity</small></button>
+          </div>
+        </section>
+        <section class="nav-group open" data-module="care">
+          <button class="module-toggle" type="button" aria-expanded="true">
+            <span><b>Care Network</b><small>People and bookings</small></span>
+            <i></i>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-item" data-view="doctors"><span>Doctors</span><small>Approvals & profiles</small></button>
+            <button class="nav-item" data-view="appointments"><span>Appointments</span><small>Bookings & care</small></button>
+            <button class="nav-item" data-view="patients"><span>Patients</span><small>Accounts & activity</small></button>
+          </div>
+        </section>
+        <section class="nav-group" data-module="business">
+          <button class="module-toggle" type="button" aria-expanded="false">
+            <span><b>Business</b><small>Money and quality</small></span>
+            <i></i>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-item" data-view="consultations"><span>Consultations</span><small>Session tracking</small></button>
+            <button class="nav-item" data-view="payments"><span>Payments</span><small>Revenue & payouts</small></button>
+            <button class="nav-item" data-view="payouts"><span>Payouts</span><small>Doctor disbursements</small></button>
+            <button class="nav-item" data-view="refunds"><span>Refunds</span><small>Approvals & status</small></button>
+            <button class="nav-item" data-view="reviews"><span>Reviews</span><small>Moderation</small></button>
+          </div>
+        </section>
+        <section class="nav-group" data-module="platform">
+          <button class="module-toggle" type="button" aria-expanded="false">
+            <span><b>Platform</b><small>Comms and settings</small></span>
+            <i></i>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-item" data-view="complaints"><span>Complaints</span><small>Disputes & escalations</small></button>
+            <button class="nav-item" data-view="support"><span>Support Tickets</span><small>Helpdesk operations</small></button>
+            <button class="nav-item" data-view="documents"><span>Medical Docs</span><small>Storage moderation</small></button>
+            <button class="nav-item" data-view="prescriptions"><span>Prescriptions</span><small>Clinical records</small></button>
+            <button class="nav-item" data-view="notifications"><span>Notifications</span><small>Announcements</small></button>
+            <button class="nav-item" data-view="content"><span>CMS Content</span><small>Banners, tips & pages</small></button>
+            <button class="nav-item" data-view="reports"><span>Reports</span><small>Analytics & export</small></button>
+            <button class="nav-item" data-view="audit"><span>Audit Logs</span><small>Admin actions</small></button>
+            <button class="nav-item" data-view="settings"><span>Settings</span><small>Platform config</small></button>
+          </div>
+        </section>
+      </nav>
+
+      <section class="connection-card">
+        <span class="status-dot" id="connectionDot"></span>
+        <div>
+          <strong id="connectionLabel">Connecting</strong>
+          <p id="connectionDetail">Checking Supabase tables</p>
+        </div>
+      </section>
+    </aside>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div>
+          <p class="eyebrow">KazHealth care network</p>
+          <h1 id="pageTitle">Platform Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="search">
+            <span>Search</span>
+            <input id="searchInput" type="search" placeholder="Doctor, patient, appointment..." />
+          </label>
+          <button class="ghost-button" id="refreshButton">Refresh</button>
+          <span class="realtime-badge hidden" id="realtimeBadge"><span class="rt-dot"></span>Live</span>
+          <button class="primary-button" id="loginButton">Admin sign in</button>
+        </div>
+      </header>
+
+      <section class="content-view" data-view-panel="dashboard">
+        <div class="metrics-grid" id="metricsGrid"></div>
+        <div class="layout-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Care demand</p>
+                <h2>Appointments by status</h2>
+              </div>
+              <span class="pill">Today</span>
+            </div>
+            <div class="status-bars" id="statusBars"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Clinical network</p>
+                <h2>Approval queue</h2>
+              </div>
+              <span class="pill warning" id="pendingCount">0 pending</span>
+            </div>
+            <div class="compact-list" id="approvalQueue"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Recent activity</p>
+              <h2>Operational feed</h2>
+            </div>
+          </div>
+          <div class="activity-list" id="activityList"></div>
+        </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="doctors">
+        <div class="doctor-hero">
+          <div>
+            <p class="eyebrow">Doctor operations</p>
+            <h2>Credential review and clinical directory</h2>
+            <p>Manage verification, profile quality, payouts, and availability for every KazHealth doctor.</p>
+          </div>
+          <div class="doctor-hero-actions">
+            <button class="ghost-button" id="refreshDoctorsButton" type="button">Refresh doctors</button>
+            <button class="primary-button" id="seedDoctorButton" type="button">Add sample doctor</button>
+          </div>
+        </div>
+        <div class="doctor-stats-grid" id="doctorStats"></div>
+        <div class="doctor-controlbar">
+          <div class="segmented" id="doctorFilters">
+            <button class="doctor-filter active" type="button" data-filter="all">All</button>
+            <button class="doctor-filter" type="button" data-filter="pending">Pending</button>
+            <button class="doctor-filter" type="button" data-filter="approved">Approved</button>
+            <button class="doctor-filter" type="button" data-filter="rejected">Rejected</button>
+            <button class="doctor-filter" type="button" data-filter="suspended">Suspended</button>
+          </div>
+          <span class="doctor-count" id="doctorCount">0 doctors</span>
+        </div>
+        <div class="card-grid" id="doctorGrid"></div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="appointments">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Care coordination</p>
+            <h2>Appointment board</h2>
+          </div>
+          <select id="appointmentFilter">
+            <option value="all">All appointments</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Time</th>
+                <th>Fee</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="payments">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Financial operations</p>
+            <h2>Payments and doctor payouts</h2>
+          </div>
+        </div>
+        <div class="layout-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Revenue mix</h2>
+              <span class="pill">GHS</span>
+            </div>
+            <div class="payment-summary" id="paymentSummary"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Payout readiness</h2>
+            </div>
+            <div class="compact-list" id="payoutList"></div>
+          </section>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Amount</th>
+                <th>Payment</th>
+                <th>Payout</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="paymentsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="consultations">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Consultation operations</p>
+            <h2>Video, audio, chat, and physical sessions</h2>
+          </div>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Consultation ID</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Duration</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="consultationsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="payouts">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Doctor disbursements</p>
+            <h2>Payout queue and processing</h2>
+          </div>
+          <button class="ghost-button" id="exportPayoutsButton" type="button">Export CSV</button>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Payout ID</th>
+                <th>Doctor</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="payoutsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="refunds">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Refund center</p>
+            <h2>Refund requests and decisions</h2>
+          </div>
+          <button class="ghost-button" id="exportRefundsButton" type="button">Export CSV</button>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Refund ID</th>
+                <th>Payment</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="refundsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="patients">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Patient support</p>
+            <h2>Account health</h2>
+          </div>
+        </div>
+        <div class="card-grid" id="patientGrid"></div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="reviews">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Review moderation</p>
+            <h2>Patient feedback and ratings</h2>
+          </div>
+        </div>
+        <div class="card-grid" id="reviewGrid"></div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="complaints">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Dispute resolution</p>
+            <h2>Complaints and escalations</h2>
+          </div>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Complaint</th>
+                <th>Type</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="complaintsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="support">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Helpdesk</p>
+            <h2>Support tickets</h2>
+          </div>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>User</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="supportTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="documents">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Medical records</p>
+            <h2>Uploaded document oversight</h2>
+          </div>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Patient</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Uploaded</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="documentsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="prescriptions">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Clinical control</p>
+            <h2>Prescription activity</h2>
+          </div>
+          <button class="ghost-button" id="exportPrescriptionsButton" type="button">Export CSV</button>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Prescription</th>
+                <th>Doctor</th>
+                <th>Patient</th>
+                <th>Status</th>
+                <th>Prescribed</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="prescriptionsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="notifications">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Messaging</p>
+            <h2>Send announcements</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="notificationForm" class="inline-form">
+            <input id="notificationMessage" type="text" placeholder="Message to all users" required />
+            <select id="notificationTarget">
+              <option value="all">All users</option>
+              <option value="patient">Patients</option>
+              <option value="doctor">Doctors</option>
+              <option value="admin">Admins</option>
+            </select>
+            <button class="primary-button" type="submit">Send notification</button>
+          </form>
+          <div class="activity-list" id="notificationList"></div>
+        </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="content">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Content management</p>
+            <h2>CMS pages, banners, and health tips</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="cmsPageForm" class="inline-form">
+            <input id="cmsSlug" type="text" placeholder="Page slug (privacy-policy)" required />
+            <input id="cmsTitle" type="text" placeholder="Page title" required />
+            <input id="cmsContent" type="text" placeholder="Page content (short)" required />
+            <button class="primary-button" type="submit">Save page</button>
+          </form>
+          <form id="bannerForm" class="inline-form">
+            <input id="bannerTitle" type="text" placeholder="Banner title" required />
+            <input id="bannerImageUrl" type="text" placeholder="Image URL" />
+            <select id="bannerAudience">
+              <option value="all">All users</option>
+              <option value="patient">Patients</option>
+              <option value="doctor">Doctors</option>
+              <option value="admin">Admins</option>
+            </select>
+            <button class="ghost-button" type="submit">Publish banner</button>
+          </form>
+          <form id="healthTipForm" class="inline-form">
+            <input id="healthTipTitle" type="text" placeholder="Health tip title" required />
+            <input id="healthTipBody" type="text" placeholder="Tip text" required />
+            <button class="ghost-button" type="submit">Save tip</button>
+          </form>
+          <div class="activity-list" id="contentList"></div>
+        </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="reports">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Analytics and exports</p>
+            <h2>Operational reports</h2>
+          </div>
+        </div>
+        <div class="metrics-grid" id="reportMetrics"></div>
+        <section class="panel">
+          <div class="section-toolbar">
+            <h2>Export center</h2>
+          </div>
+          <div class="inline-form">
+            <button class="ghost-button" type="button" id="exportAppointmentsButton">Appointments CSV</button>
+            <button class="ghost-button" type="button" id="exportPaymentsButton">Payments CSV</button>
+            <button class="ghost-button" type="button" id="exportDoctorsButton">Doctors CSV</button>
+            <button class="ghost-button" type="button" id="exportPatientsButton">Patients CSV</button>
+            <button class="ghost-button" type="button" id="exportComplaintsButton">Complaints CSV</button>
+            <button class="ghost-button" type="button" id="exportSupportButton">Support CSV</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="settings">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Platform settings</p>
+            <h2>Configuration</h2>
+          </div>
+        </div>
+        <section class="panel">
+          <form id="settingsForm" class="inline-form">
+            <label>
+              Default consultation fee
+              <input id="defaultFee" type="number" min="0" placeholder="150" />
+            </label>
+            <label>
+              Platform commission %
+              <input id="platformCommission" type="number" min="0" max="100" placeholder="15" />
+            </label>
+            <button class="primary-button" type="submit">Save settings</button>
+          </form>
+          <form id="specialtyForm" class="inline-form">
+            <input id="specialtyName" type="text" placeholder="Add specialty, e.g. Neurologist" />
+            <button class="ghost-button" type="submit">Add specialty</button>
+          </form>
+          <div class="activity-list" id="settingsList"></div>
+        </section>
+      </section>
+
+      <section class="content-view hidden" data-view-panel="audit">
+        <div class="section-toolbar">
+          <div>
+            <p class="eyebrow">Platform control</p>
+            <h2>Admin audit trail</h2>
+          </div>
+          <button class="ghost-button" id="refreshAuditButton" type="button">Refresh logs</button>
+        </div>
+        <div class="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Admin</th>
+                <th>Time</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="auditTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="announce-popup hidden" id="announcePopup" aria-live="polite" aria-atomic="true">
+      <div class="announce-popup-backdrop" onclick="hideAnnouncementPopup()"></div>
+      <div class="announce-popup-card">
+        <button class="announce-popup-close" type="button" onclick="hideAnnouncementPopup()" aria-label="Close popup">&times;</button>
+        <div class="announce-popup-orbit orbit-a"></div>
+        <div class="announce-popup-orbit orbit-b"></div>
+        <div class="announce-popup-badge">
+          <span class="announce-popup-icon">✓</span>
+        </div>
+        <p class="eyebrow">Announcement sent</p>
+        <h2 id="announcePopupTitle">Delivered successfully</h2>
+        <p class="announce-popup-copy" id="announcePopupCopy">Your message is now on its way.</p>
+        <div class="announce-popup-meta">
+          <div>
+            <span>Audience</span>
+            <strong id="announcePopupAudience">All users</strong>
+          </div>
+          <div>
+            <span>Recipients</span>
+            <strong id="announcePopupCount">0</strong>
+          </div>
+        </div>
+        <div class="announce-popup-preview" id="announcePopupPreview"></div>
+        <div class="announce-popup-actions">
+          <button class="ghost-button" type="button" onclick="hideAnnouncementPopup()">Close</button>
+          <button class="primary-button" type="button" onclick="focusNotificationComposer()">Send another</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Review Modal -->
+    <div class="modal-overlay hidden" id="docReviewModal">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Doctor verification</p>
+            <h2 id="docReviewTitle">Review license document</h2>
+          </div>
+          <button class="modal-close" onclick="closeDoctorReview()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="doc-viewer" id="docViewer">
+            <iframe id="docFrame" class="doc-iframe" src="" title="Doctor license document"></iframe>
+          </div>
+          <div class="doc-review-panel">
+            <div class="review-info">
+              <div>
+                <span class="eyebrow">Doctor name</span>
+                <strong id="reviewDoctorName">—</strong>
+              </div>
+              <div>
+                <span class="eyebrow">Specialty</span>
+                <strong id="reviewSpecialty">—</strong>
+              </div>
+              <div>
+                <span class="eyebrow">Experience</span>
+                <strong id="reviewExperience">—</strong>
+              </div>
+            </div>
+            <div class="review-notes">
+              <label>
+                <span class="eyebrow">Admin notes</span>
+                <textarea id="reviewNotes" placeholder="Document quality, verification status, etc."></textarea>
+              </label>
+            </div>
+            <div class="review-actions">
+              <button class="small-button success" onclick="approveFromReview()">✓ Approve doctor</button>
+              <button class="small-button danger" onclick="rejectFromReview()">✗ Reject doctor</button>
+              <button class="ghost-button" onclick="closeDoctorReview()">Close review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

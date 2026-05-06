@@ -1,0 +1,6 @@
+/* Netlify SPA redirect for hash-based routing */
+/* This will ensure all routes serve index.html for SPA navigation */
+/* Place this file in the platform-admin/ directory if deploying only the admin panel, or at the root if deploying the whole app */
+
+/*    /index.html   200 
+*/
